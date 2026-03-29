@@ -1,3 +1,3 @@
-module github.com/johannesalke/CyberspaceTUI
+module github.com/johannesalke/CyberspaceClient
 
 go 1.25.6

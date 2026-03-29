@@ -1,12 +1,12 @@
-package main
+package client
 
 import (
-	"github.com/johannesalke/CyberspaceTUI/internal/auth"
+	//"github.com/johannesalke/CyberspaceTUI/internal/auth"
 	"io"
 	"net/http"
 )
 
-func makeRequest(method, url string, tokens auth.AuthTokens, body io.Reader) (*http.Request, error) {
+func makeRequest(method, url string, tokens AuthTokens, body io.Reader) (*http.Request, error) {
 	req, err := http.NewRequest(method, url, body)
 	if err != nil {
 		return nil, err

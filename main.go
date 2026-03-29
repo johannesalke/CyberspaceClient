@@ -2,33 +2,54 @@ package main
 
 import (
 	"bufio"
-	"bytes"
-	"encoding/json"
+	//"bytes"
+	//"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
-	"os/exec"
+	//"os/exec"
 	"strings"
-	"time"
+	//"time"
 
-	"github.com/johannesalke/CyberspaceTUI/internal/auth"
+	client "github.com/johannesalke/CyberspaceClient/internal/cyberspaceClient"
 )
 
 type Config struct {
-	apiUrl string
-	cache  map[string]any
-	tokens auth.AuthTokens
-	client http.Client
+	apiUrl   string
+	cache    map[string]any
+	tokens   client.AuthTokens
+	username string
+	client   http.Client
 }
 
 func main() {
-	cfg := Config{apiUrl: "https://api.cyberspace.online/v1"}
-	//client := http.NewClientHandler()
-	cfg.tokens = auth.Login(cfg.apiUrl)
-	fmt.Printf("authToken: %.10s", cfg.tokens.IDToken)
 
+	csc := client.APIClient{ApiUrl: "https://api.cyberspace.online/v1", Client: &http.Client{}}
+
+	//cfg := Config{apiUrl: "https://api.cyberspace.online/v1"}
+	//client := http.NewClientHandler()
+	csc.Tokens = client.Login(csc.ApiUrl)
+	fmt.Printf("authToken: %.10s", csc.Tokens.IDToken)
+
+	id := "Leg8tjQYjTZo9cOySqb4"
+	post, err := csc.GetPostById(id)
+	if err != nil {
+		fmt.Print(err)
+	}
+	fmt.Print(post.AuthorUsername, post.Content)
+	err = csc.DeletePost(id)
+	if err != nil {
+		fmt.Print(err)
+	}
+	for true {
+		x := 5
+		x = x + 5
+	}
 	scanner := bufio.NewScanner(os.Stdin)
-	CreatePost(cfg.apiUrl, cfg.tokens)
+	err = csc.CreatePost(csc.Tokens)
+	if err != nil {
+		fmt.Print(err)
+	}
 	for true {
 		scanner.Scan()
 		input := scanner.Text()
@@ -44,106 +65,6 @@ func main() {
 }
 
 ////////////////////////////| Posts |///////////////////////////
-
-type GetPostsResponse struct {
-	Data   []Post `json:"data"`
-	Cursor string `json:"cursor"`
-}
-
-type OnePostResponse struct {
-	Data Post `json:"data"`
-}
-
-type Post struct {
-	PostID         string        `json:"postId"`
-	AuthorID       string        `json:"authorId"`
-	AuthorUsername string        `json:"authorUsername"`
-	Content        string        `json:"content"`
-	Topics         []string      `json:"topics"`
-	RepliesCount   int           `json:"repliesCount"`
-	BookmarksCount int           `json:"bookmarksCount"`
-	IsPublic       bool          `json:"isPublic"`
-	IsNSFW         bool          `json:"isNSFW"`
-	Attachments    []interface{} `json:"attachments"`
-	CreatedAt      time.Time     `json:"createdAt"`
-	Deleted        bool          `json:"deleted"`
-}
-
-type CreatePostInput struct {
-	Content     string   `json:"content"`
-	Topics      []string `json:"topics"`
-	IsPublic    bool     `json:"isPublic"`
-	IsNSFW      bool     `json:"isNSFW"`
-	Attachments []struct {
-		Type   string `json:"type"`
-		Src    string `json:"src"`
-		Width  int    `json:"width"`
-		Height int    `json:"height"`
-	} `json:"attachments"`
-}
-
-func CreatePost(url string, tokens auth.AuthTokens) error {
-
-	content := EditPost()
-	postInput := CreatePostInput{
-		Content:  content,
-		Topics:   []string{"test", "api", "cli"},
-		IsPublic: true,
-		IsNSFW:   false,
-	}
-	postJson, err := json.Marshal(postInput)
-	if err != nil {
-		panic(err)
-	}
-	req, err := makeRequest("POST", url+"/posts", tokens, bytes.NewBuffer(postJson))
-	if err != nil {
-		panic(err)
-	}
-	res, err := http.DefaultClient.Do(req)
-	if err != nil {
-		panic(err)
-	}
-
-	var postConfirm OnePostResponse
-	decoder := json.NewDecoder(res.Body)
-	err = decoder.Decode(&postConfirm)
-	if err != nil {
-		panic(err)
-	}
-	fmt.Print(postConfirm)
-	return nil
-}
-
-func EditPost() string {
-	tmpFile, err := os.CreateTemp("", "message-*.txt")
-	if err != nil {
-		panic(err)
-	}
-	defer os.Remove(tmpFile.Name())
-
-	editor := os.Getenv("EDITOR")
-	if editor == "" {
-		editor = "vi" // fallback
-	}
-
-	cmd := exec.Command(editor, tmpFile.Name())
-	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
-	if err := cmd.Run(); err != nil {
-		panic(err)
-	}
-
-	content, err := os.ReadFile(tmpFile.Name())
-	if err != nil {
-		panic(err)
-	}
-
-	fmt.Println("Message:")
-	fmt.Println(string(content))
-	return string(content)
-}
 
 /*
 func (cfg *Config) sendRequest() {
