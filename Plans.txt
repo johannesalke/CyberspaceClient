@@ -31,3 +31,12 @@ Main application sequence:
 
 
 
+===========================================================
+How to handle old tokens:
+If a Client package function fails, check if the last status message was 401. 
+If it was, perform TokenRefresh, then retry the function.
+
+
+
+
+

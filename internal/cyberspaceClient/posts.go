@@ -48,7 +48,7 @@ type CreatePostInput struct {
 	} `json:"attachments"`
 }
 
-func (c *APIClient) GetPosts(limit int, starting_id string) error {
+func (c *APIClient) GetPosts(limit int, cursor string) error {
 
 	http.NewRequest("GET", "https://api.cyberspace.online/v1/posts", nil)
 

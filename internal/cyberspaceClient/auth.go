@@ -70,8 +70,9 @@ type refreshedTokens struct {
 	RTDBToken string `json:"rtbdToken"`
 }
 
-func TokenRefresh(url string, tokens AuthTokens) AuthTokens {
-	refreshJson, err := json.Marshal(refreshData{RefreshToken: tokens.RefreshToken})
+func (c *APIClient) TokenRefresh(url string) {
+
+	refreshJson, err := json.Marshal(refreshData{RefreshToken: c.Tokens.RefreshToken})
 	if err != nil {
 		fmt.Printf("Error encoding refreshData to json: %s", err)
 		os.Exit(1)
@@ -86,12 +87,13 @@ func TokenRefresh(url string, tokens AuthTokens) AuthTokens {
 	decoder := json.NewDecoder(res.Body)
 	err = decoder.Decode(&refTokens)
 	if err != nil {
-		fmt.Printf("Error decoding json: %s\n", err)
+		fmt.Printf("Error decoding json while refreshing tokens: %s\n", err)
 		os.Exit(1)
 	}
-	tokens.IDToken = refTokens.IDToken
-	tokens.RTDBToken = refTokens.RTDBToken
-	return tokens
+	c.Tokens.IDToken = refTokens.IDToken
+	c.Tokens.RTDBToken = refTokens.RTDBToken
+	c.LastStatusCode = 0
+
 }
 
 //////////////////////| Not yet implemented | Check Username availability & resend verification email |///////////////////////////
