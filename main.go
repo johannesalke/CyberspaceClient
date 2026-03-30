@@ -24,13 +24,26 @@ type Config struct {
 
 func main() {
 
-	csc := client.APIClient{ApiUrl: "https://api.cyberspace.online/v1", Client: &http.Client{}}
+	csc := client.InitAPIClient()
 
 	//cfg := Config{apiUrl: "https://api.cyberspace.online/v1"}
 	//client := http.NewClientHandler()
 	csc.Tokens = client.Login(csc.ApiUrl)
 	fmt.Printf("authToken: %.10s", csc.Tokens.IDToken)
-
+	posts, _, err := csc.GetPosts(5, "")
+	if err != nil {
+		fmt.Print("Error: ", err)
+	}
+	for _, post := range posts {
+		if post.IsNSFW == true {
+			continue
+		}
+		fmt.Print(post.AuthorUsername, " | ", post.PostID, "\n")
+		fmt.Print("=======================================================", "\n")
+		fmt.Print(post.Content, "\n")
+		fmt.Print("=======================================================", "\n")
+	}
+	//client.Post{}
 	id := "Leg8tjQYjTZo9cOySqb4"
 	post, err := csc.GetPostById(id)
 	if err != nil {

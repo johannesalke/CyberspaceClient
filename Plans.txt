@@ -40,3 +40,20 @@ If it was, perform TokenRefresh, then retry the function.
 
 
 
+
+==============================
+Showing the feed
+
+What to show on the feed: Poster name, number of replies, number of saves, post id (for checking post directly)
+
+
+
+
+
+
+
+
+
+
+
+

@@ -43,14 +43,14 @@ type MarkAllReadReply struct {
 	} `json:"data"`
 }
 
-func (c *APIClient) GetNotifications(limit int, cursor string) ([]Notification, error) {
+func (c *APIClient) GetNotifications(limit int, cursor string) (notifications []Notification, newCursor string, err error) {
 	url := makeGetUrl(c.ApiUrl+"/notifications", limit, cursor)
 
 	req, _ := makeRequest("GET", url, c.Tokens, nil)
 
-	res, err := c.Client.Do(req)
+	res, err := c.sendRequest(req)
 	if err != nil {
-		return nil, fmt.Errorf("Error retrieving Notifications: err")
+		return nil, cursor, fmt.Errorf("Error retrieving Notifications: %s", err)
 	}
 
 	var getNotificationsReply GetNotificationsReply
@@ -59,9 +59,9 @@ func (c *APIClient) GetNotifications(limit int, cursor string) ([]Notification, 
 	if err != nil {
 		panic(err)
 	}
-	fmt.Print(getNotificationsReply)
-	c.NotificationCursor = getNotificationsReply.Cursor
-	return getNotificationsReply.Data, nil
+	//fmt.Print(getNotificationsReply)
+	c.Cursors["notifications_standard"] = getNotificationsReply.Cursor
+	return getNotificationsReply.Data, getNotificationsReply.Cursor, nil
 }
 
 func (c *APIClient) MarkAsRead(notificationID string) error {

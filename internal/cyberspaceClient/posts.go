@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	//client "github.com/johannesalke/CyberspaceTUI/internal/cyberspaceClient"
-	"net/http"
+	//"net/http"
 	"os"
 	"os/exec"
 	"time"
@@ -21,18 +21,18 @@ type OnePostResponse struct {
 }
 
 type Post struct {
-	PostID         string        `json:"postId"`
-	AuthorID       string        `json:"authorId"`
-	AuthorUsername string        `json:"authorUsername"`
-	Content        string        `json:"content"`
-	Topics         []string      `json:"topics"`
-	RepliesCount   int           `json:"repliesCount"`
-	BookmarksCount int           `json:"bookmarksCount"`
-	IsPublic       bool          `json:"isPublic"`
-	IsNSFW         bool          `json:"isNSFW"`
-	Attachments    []interface{} `json:"attachments"`
-	CreatedAt      time.Time     `json:"createdAt"`
-	Deleted        bool          `json:"deleted"`
+	PostID         string    `json:"postId"`
+	AuthorID       string    `json:"authorId"`
+	AuthorUsername string    `json:"authorUsername"`
+	Content        string    `json:"content"`
+	Topics         []string  `json:"topics"`
+	RepliesCount   int       `json:"repliesCount"`
+	BookmarksCount int       `json:"bookmarksCount"`
+	IsPublic       bool      `json:"isPublic"`
+	IsNSFW         bool      `json:"isNSFW"`
+	Attachments    any       `json:"attachments"`
+	CreatedAt      time.Time `json:"createdAt"`
+	Deleted        bool      `json:"deleted"`
 }
 
 type CreatePostInput struct {
@@ -48,11 +48,28 @@ type CreatePostInput struct {
 	} `json:"attachments"`
 }
 
-func (c *APIClient) GetPosts(limit int, cursor string) error {
+func (c *APIClient) GetPosts(limit int, cursor string) (posts []Post, newCursor string, err error) {
+	url := makeGetUrl(c.ApiUrl+"/posts", limit, cursor)
 
-	http.NewRequest("GET", "https://api.cyberspace.online/v1/posts", nil)
+	req, err := makeRequest("GET", url, c.Tokens, nil)
+	if err != nil {
+		return []Post{}, cursor, fmt.Errorf("Error forming request: %s", err)
+	}
 
-	return nil
+	res, err := c.sendRequest(req)
+	if err != nil {
+		return nil, cursor, fmt.Errorf("Error retrieving Posts: %s", err)
+	}
+
+	var getPostsResponse GetPostsResponse
+	decoder := json.NewDecoder(res.Body)
+	err = decoder.Decode(&getPostsResponse)
+	if err != nil {
+		panic(err)
+	}
+	//fmt.Print(getNotificationsReply)
+	c.Cursors["posts_standard"] = getPostsResponse.Cursor
+	return getPostsResponse.Data, getPostsResponse.Cursor, nil
 
 }
 
@@ -63,7 +80,7 @@ func (c *APIClient) GetPostById(post_id string) (Post, error) {
 		return Post{}, fmt.Errorf("Error forming request: %s", err)
 	}
 
-	res, err := c.Client.Do(req)
+	res, err := c.sendRequest(req)
 	if err != nil {
 		return Post{}, fmt.Errorf("Error requesting post by ID: %s", err)
 	}
@@ -92,18 +109,18 @@ func (c *APIClient) CreatePost(tokens AuthTokens) error {
 	}
 	req, err := makeRequest("POST", c.ApiUrl+"/posts", tokens, bytes.NewBuffer(postJson))
 	if err != nil {
-		return fmt.Errorf("Error making request:%s", err)
+		return fmt.Errorf("Error making post request:%s", err)
 	}
-	res, err := c.Client.Do(req)
+	res, err := c.sendRequest(req)
 	if err != nil {
-		panic(err)
+		return fmt.Errorf("Error sending post request:%s", err)
 	}
 
 	var postConfirm OnePostResponse
 	decoder := json.NewDecoder(res.Body)
 	err = decoder.Decode(&postConfirm)
 	if err != nil {
-		panic(err)
+		return fmt.Errorf("Error decoding post json:%s", err)
 	}
 	fmt.Print(postConfirm)
 	return nil
@@ -144,11 +161,11 @@ func (c *APIClient) DeletePost(postId string) error {
 
 	req, err := makeRequest("DELETE", c.ApiUrl+"/posts/"+postId, c.Tokens, nil)
 	if err != nil {
-		fmt.Errorf("Error forming delete request: %s", err)
+		return fmt.Errorf("Error forming delete request: %s", err)
 	}
-	res, err := http.DefaultClient.Do(req)
+	res, err := c.sendRequest(req)
 	if err != nil {
-		fmt.Errorf("Error during the request process: %s", err)
+		return fmt.Errorf("Error during the request process: %s", err)
 	}
 
 	if res.StatusCode == 200 { //Check result based on response code.

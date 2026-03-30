@@ -23,18 +23,18 @@ func makeGetUrl(url string, limit int, cursor string) string {
 		limit = 20
 	}
 
-	url += fmt.Sprintf("?limit=%s", limit)
+	url += fmt.Sprintf("?limit=%d", limit)
 	if cursor != "" {
 		url += fmt.Sprintf("&cursor=%s", cursor)
 	}
 	return url
 }
 
-func (c APIClient) sendRequest(req *http.Request) (*http.Response, error) {
+func (c *APIClient) sendRequest(req *http.Request) (*http.Response, error) {
 	res, err := c.Client.Do(req)
 	c.LastStatusCode = res.StatusCode
 	if err != nil {
-		return res, fmt.Errorf("Error sending request: %s", err)
+		return res, err
 	}
 	return res, nil
 }
