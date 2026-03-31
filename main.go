@@ -27,7 +27,7 @@ type Config struct {
 //
 
 func main() {
-	fmt.Print(err)
+	//fmt.Print(err)
 
 	//renderer, _ := glamour.NewTermRenderer(glamour.WithStylePath("dark"))
 	//out, _ := renderer.Render("# Heading\n\n**Bold text**\n\n- List item")
@@ -86,6 +86,8 @@ func main() {
 	scanner := bufio.NewScanner(os.Stdin)
 
 	for true {
+
+		fmt.Print("> ")
 		scanner.Scan()
 		input := scanner.Text()
 		arguments := strings.Split(input, " ")

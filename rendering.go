@@ -42,7 +42,7 @@ func RenderBox(elements ...string) error {
 		result += boxSides.Render(strings.TrimRight(element, "\n")) + "\n"
 
 	}
-	result += boxBottom.Render(strings.TrimRight(elements[N-1], "\n"))
+	result += boxBottom.Render(strings.TrimRight(elements[N-1], "\n")) + "\n"
 
 	fmt.Print(result)
 	return nil
@@ -86,4 +86,9 @@ func renderReplies(reply client.Reply) {
 		fmt.Println(err)
 	}
 
+}
+
+func renderText(str string) string {
+	res, _ := renderer.Render(str)
+	return res
 }
