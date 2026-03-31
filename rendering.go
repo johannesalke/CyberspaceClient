@@ -101,7 +101,7 @@ func renderNotification(csc *client.APIClient, n client.Notification) {
 	//timeSince :=time.Since(n.CreatedAt)
 	timeSince := humanize.RelTime(time.Now(), n.CreatedAt, "in the future", "ago")
 	var id = ""
-	if n.Type == "new_post_friend" || n.Type == "new_post_following" {
+	if n.Type == "new_post_friend" || n.Type == "new_post_following" || n.Type == "reply" {
 		id = "| Id: " + n.TargetID
 	}
 
