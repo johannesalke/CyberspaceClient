@@ -27,3 +27,6 @@ The client has the following commands:
 - post <post_id>: Shows a post and all its replies. This command requires an argument, the post id shown in the top-line of each post.
 - notifications: Get the last 10 notifications, and the 10 more with each additional use. If the notification is for a new post, it will also show the id of that post so you can open it with the 'post' command. 
 - note <note_id>: Lets you open an existing note from your journal, edit it, and save the edited version.
+
+### Warnings:
+When the program closes, including via ctrl+c, it will reset your terminal color to the default. 

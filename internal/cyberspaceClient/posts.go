@@ -94,8 +94,8 @@ func (c *APIClient) GetPostById(post_id string) (Post, error) {
 
 func (c *APIClient) CreatePost() error {
 
-	content := WriteContent()
-	topics := WriteTopics()
+	content := WriteContent() //See: utilities
+	topics := WriteTopics()   //See: utilities
 	postInput := CreatePostInput{
 		Content:  content,
 		Topics:   topics,

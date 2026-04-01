@@ -13,7 +13,7 @@ import (
 
 var (
 	basicBox = lipgloss.NewStyle().
-			Width(88).
+			Width(86).
 			MarginLeft(4).
 			Padding(0, 2, 0, 2).
 			Foreground(lipgloss.Color("#ff9a10")).
@@ -23,7 +23,7 @@ var (
 		Border(lipgloss.RoundedBorder(), true, true, false, true).
 		Padding(0, 2, 0, 2).
 		MarginLeft(4).
-		MarginTop(2)
+		MarginTop(1)
 	boxSides = lipgloss.NewStyle().Inherit(basicBox).
 			Border(lipgloss.RoundedBorder(), false, true, false, true).
 			Padding(0, 2, 0, 2).
@@ -56,7 +56,7 @@ func RenderBox(elements ...string) error {
 	return nil
 }
 
-func renderPost(post client.Post) {
+func renderPost(post client.Post, fullPost bool) {
 	topline, _ := renderer.Render(fmt.Sprintln("@"+post.AuthorUsername, " | ", post.RepliesCount, " replies | ", post.PostID))
 
 	seperator, err := renderer.Render(strings.Repeat("─", 80))
@@ -67,9 +67,22 @@ func renderPost(post client.Post) {
 	if err != nil {
 		fmt.Println(err)
 	}
-	err = RenderBox(topline, seperator, renderedMD)
-	if err != nil {
-		fmt.Println(err)
+
+	if len(post.Topics) != 0 { //This block occurs if a post has topic tags. In that case, another dividing line is added and the topics are displayed below it.
+
+		topics, err := renderer.Render("Topics: " + strings.Join(post.Topics, ", "))
+		if err != nil {
+			fmt.Println(err)
+		}
+		err = RenderBox(topline, seperator, renderedMD, seperator, topics)
+		if err != nil {
+			fmt.Println(err)
+		}
+	} else { // Otherwise, just render normally.
+		err = RenderBox(topline, seperator, renderedMD)
+		if err != nil {
+			fmt.Println(err)
+		}
 	}
 
 }
@@ -112,4 +125,8 @@ func renderNotification(csc *client.APIClient, n client.Notification) {
 func renderText(str string) string {
 	res, _ := renderer.Render(str)
 	return res
+}
+
+func renderPrint(str string) {
+	fmt.Print(renderer.Render(str))
 }

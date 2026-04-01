@@ -2,11 +2,15 @@ package main
 
 import (
 	"bufio"
+	//"github.com/fatih/color"
+	"os/signal"
+	"syscall"
 	//"bytes"
 	//"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
+
 	//"os/exec"
 	"strings"
 	//"time"
@@ -32,31 +36,52 @@ func main() {
 	//renderer, _ := glamour.NewTermRenderer(glamour.WithStylePath("dark"))
 	//out, _ := renderer.Render("# Heading\n\n**Bold text**\n\n- List item")
 	//fmt.Print(out)
+	//color.Set(color.BgHiGreen)
+	ch := make(chan os.Signal, 1)
+	signal.Notify(ch, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		<-ch
+		fmt.Print("\033[0m") // Reset on interrupt
+		fmt.Print("\n")
+		os.Exit(0)
+	}()
+	fmt.Print(`
+	 ██████╗██╗   ██╗██████╗ ███████╗██████╗ ███████╗██████╗  █████╗  ██████╗███████╗
+	██╔════╝╚██╗ ██╔╝██╔══██╗██╔════╝██╔══██╗██╔════╝██╔══██╗██╔══██╗██╔════╝██╔════╝
+	██║      ╚████╔╝ ██████╔╝█████╗  ██████╔╝███████╗██████╔╝███████║██║     █████╗
+	██║       ╚██╔╝  ██╔══██╗██╔══╝  ██╔══██╗╚════██║██╔═══╝ ██╔══██║██║     ██╔══╝
+	╚██████╗   ██║   ██████╔╝███████╗██║  ██║███████║██║     ██║  ██║╚██████╗███████╗
+	 ╚═════╝   ╚═╝   ╚═════╝ ╚══════╝╚═╝  ╚═╝╚══════╝╚═╝     ╚═╝  ╚═╝ ╚═════╝╚══════╝
+`)
+
+	defer fmt.Print("\033[0m")
+	//fmt.Print("\172[0m") fmt.Print("\033[38;5;203m")
+	fmt.Print("\033[38;5;223m")
 
 	var csc = client.InitAPIClient()
 	//fmt.Print(csc)
-	//csc.Config = client.GetConfig()
+	csc.Config = client.GetConfig()
 	//fmt.Print(csc.Config)
 
 	//cfg := Config{apiUrl: "https://api.cyberspace.online/v1"}
 	//client := http.NewClientHandler()
-	/*if csc.Config.StayLoggedIn == true {
+	if csc.Config.StayLoggedIn == true {
 		csc.Tokens = client.AuthTokens{RefreshToken: "", IDToken: "", RTDBToken: ""}
 		csc.Tokens.RefreshToken = csc.Config.StoredValues.RefreshToken
-		fmt.Print((csc.Tokens.RefreshToken), "\n")
+		//fmt.Print((csc.Tokens.RefreshToken), "\n")
 		csc.TokenRefresh()
-	} else {
+		fmt.Print("You are still logged in.\n")
 
-	}*/
-	csc.Tokens = client.Login(csc.ApiUrl)
-	fmt.Printf("authToken: %.10s |\n", csc.Tokens.IDToken)
+	} else {
+		csc.Tokens = client.Login(csc.ApiUrl)
+	}
+
+	fmt.Printf("[authToken: %.10s...]\n", csc.Tokens.IDToken)
 
 	c := commands{make(map[string]func(*client.APIClient, command) error)}
-	c.register("feed", handlerViewFeed)
-	c.register("write", handlerCreatePost)
-	c.register("post", handlerViewPost)
+	c.register("view", handlerView)
+	c.register("write", handlerWrite)
 	c.register("note", handlerUpdateNote)
-	c.register("notifications", handlerViewNotifications)
 	//c.register("config", handlerUpdateConfig)
 
 	scanner := bufio.NewScanner(os.Stdin)
@@ -76,8 +101,9 @@ func main() {
 			csc.TokenRefresh()
 			err = c.run(&csc, cmd)
 		}
+		fmt.Print("\033[38;5;223m")
 		if err != nil {
-			fmt.Println(&err)
+			fmt.Println(err)
 		}
 
 		//cmd := args[0]
@@ -107,7 +133,50 @@ func (c *commands) register(name string, f func(*client.APIClient, command) erro
 	c.commands[name] = f
 }
 
-///=======================================
+//=====================|Level 1 Handlers|=========================
+
+func handlerView(csc *client.APIClient, cmd command) error { // Redirects to handlers: viewFeed, viewPost, viewNotes, view Notifications, ...
+	if len(cmd.Args) == 0 {
+		renderPrint("The 'view' command requires an argument. Valid arguments: feed, post <id>, notifications, notes.\n")
+		return nil
+	}
+
+	switch cmd.Args[0] {
+	case "feed":
+		return handlerViewFeed(csc, cmd)
+	case "notifications":
+		return handlerViewNotifications(csc, cmd)
+	case "post":
+		return handlerViewPost(csc, cmd)
+	case "notes":
+		return handlerViewNotes(csc, cmd)
+
+	}
+	return nil
+}
+
+func handlerWrite(csc *client.APIClient, cmd command) error {
+	if len(cmd.Args) == 0 {
+		renderPrint("The 'write' command requires an argument. Valid arguments: post, note\n")
+		return nil
+	}
+
+	switch cmd.Args[0] {
+	case "post":
+		return handlerWritePost(csc, cmd)
+
+	case "note":
+		return handlerViewNotifications(csc, cmd)
+	case "":
+		return handlerViewPost(csc, cmd)
+	case "notes":
+		return handlerViewNotes(csc, cmd)
+
+	}
+	return nil
+}
+
+//////////////////| View Handlers |///////////////////////////////
 
 func handlerViewFeed(csc *client.APIClient, cmd command) error {
 
@@ -119,7 +188,7 @@ func handlerViewFeed(csc *client.APIClient, cmd command) error {
 		if post.IsNSFW == true {
 			continue
 		}
-		renderPost(post)
+		renderPost(post, false)
 
 	}
 	return nil
@@ -132,7 +201,7 @@ func handlerViewPost(csc *client.APIClient, cmd command) error {
 	if err != nil {
 		fmt.Print(err)
 	}
-	renderPost(post)
+	renderPost(post, true)
 	replies, _, err := csc.GetReplies(post_id, 20, "")
 	if err != nil {
 		fmt.Print(err)
@@ -150,20 +219,6 @@ func handlerViewPost(csc *client.APIClient, cmd command) error {
 	return nil
 }
 
-func handlerCreatePost(csc *client.APIClient, cmd command) error {
-	err := csc.CreatePost()
-	if err != nil {
-		fmt.Print(err)
-	}
-	return nil
-}
-
-func handlerUpdateConfig(csc *client.APIClient, cmd command) error {
-
-	csc.UpdateConfig()
-	return nil
-}
-
 func handlerViewNotifications(csc *client.APIClient, cmd command) error {
 
 	notifications, new_cursor, err := csc.GetNotifications(10, csc.Cursors["notifications"])
@@ -174,6 +229,28 @@ func handlerViewNotifications(csc *client.APIClient, cmd command) error {
 	for _, notification := range notifications {
 		renderNotification(csc, notification)
 	}
+	return nil
+}
+
+func handlerViewNotes(csc *client.APIClient, cmd command) error {
+	return nil
+}
+
+///////////////| Writing Handlers |////////////////////////
+
+func handlerWritePost(csc *client.APIClient, cmd command) error {
+	err := csc.CreatePost()
+	if err != nil {
+		fmt.Print(err)
+	}
+	return nil
+}
+
+////////////////| Editing Handlers |////////////////////////////
+
+func handlerUpdateConfig(csc *client.APIClient, cmd command) error {
+
+	csc.UpdateConfig()
 	return nil
 }
 

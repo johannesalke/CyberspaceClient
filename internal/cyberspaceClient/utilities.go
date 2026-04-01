@@ -2,6 +2,7 @@ package client
 
 import (
 	//"github.com/johannesalke/CyberspaceTUI/internal/auth"
+	"bufio"
 	"fmt"
 	"io"
 	"net/http"
@@ -42,6 +43,8 @@ func (c *APIClient) sendRequest(req *http.Request) (*http.Response, error) {
 	return res, nil
 }
 
+/////////////////| Functions for writing Posts or Notes |//////////////////////
+
 func WriteContent() string {
 	tmpFile, err := os.CreateTemp("", "message-*.txt")
 	if err != nil {
@@ -75,8 +78,9 @@ func WriteContent() string {
 
 func WriteTopics() []string {
 	fmt.Print("Content registered. You may now add up to three topics to the entry, seperated by commas:\n")
-	var topicString string
-	fmt.Scanln(&topicString)
+	scanner := bufio.NewScanner(os.Stdin)
+	scanner.Scan()
+	topicString := scanner.Text()
 	topics := strings.Split(topicString, ",")
 	return topics
 }

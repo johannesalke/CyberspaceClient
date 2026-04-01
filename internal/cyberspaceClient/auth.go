@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+
 	"net/http"
 	"os"
 )
@@ -69,8 +70,10 @@ type refreshData struct {
 }
 
 type refreshedTokens struct {
-	IDToken   string `json:"idToken"`
-	RTDBToken string `json:"rtbdToken"`
+	Data struct {
+		IDToken   string `json:"idToken"`
+		RTDBToken string `json:"rtbdToken"`
+	} `json:"data"`
 }
 
 func (c *APIClient) TokenRefresh() {
@@ -80,23 +83,43 @@ func (c *APIClient) TokenRefresh() {
 		fmt.Printf("Error encoding refreshData to json: %s", err)
 		os.Exit(1)
 	}
+	//fmt.Print(string(refreshJson))
 	res, err := http.Post(c.ApiUrl+"/auth/refresh", "application/json", bytes.NewBuffer(refreshJson))
-
 	if err != nil {
 		fmt.Printf("Error refreshing auth tokens: %s\n", err)
 		os.Exit(1)
 	}
+	//fmt.Println(res.Body, res.StatusCode)
 	defer res.Body.Close()
 
+	if res.StatusCode != http.StatusOK {
+		fmt.Printf("Unexpected status during token refresh: %d\n", res.StatusCode)
+		os.Exit(1)
+	}
+
 	var refTokens refreshedTokens
+
+	/*bodyBytes, err := io.ReadAll(res.Body)
+	if err != nil {
+		fmt.Printf("Error reading body: %s\n", err)
+		os.Exit(1)
+	}
+	fmt.Printf("Raw response body: %s\n", string(bodyBytes))
+
+	// Then decode from the bytes you already read
+	err = json.Unmarshal(bodyBytes, &refTokens)*/
+
 	decoder := json.NewDecoder(res.Body)
 	err = decoder.Decode(&refTokens)
 	if err != nil {
 		fmt.Printf("Error decoding json while refreshing tokens: %s\n", err)
 		os.Exit(1)
 	}
-	c.Tokens.IDToken = refTokens.IDToken
-	c.Tokens.RTDBToken = refTokens.RTDBToken
+	//fmt.Print(refTokens)
+	c.Tokens.IDToken = refTokens.Data.IDToken
+	c.Tokens.RTDBToken = refTokens.Data.RTDBToken
+
+	c.LastStatusCode = res.StatusCode
 	if c.LastStatusCode == 401 {
 		fmt.Print("Remedial Login.")
 		c.Tokens = Login(c.ApiUrl)
