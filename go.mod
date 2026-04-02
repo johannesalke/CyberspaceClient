@@ -1,4 +1,4 @@
-module github.com/johannesalke/CyberspaceClient
+module github.com/johannesalke/cyberspacecli
 
 go 1.25.8
 

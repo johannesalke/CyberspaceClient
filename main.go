@@ -22,7 +22,7 @@ import (
 
 	//glamour "charm.land/glamour/v2"
 
-	client "github.com/johannesalke/CyberspaceClient/internal/cyberspaceClient"
+	client "github.com/johannesalke/cyberspacecli/internal/cyberspaceClient"
 )
 
 type Config struct {
@@ -105,6 +105,8 @@ func main() {
 		arguments := strings.Split(input, " ")
 		if len(arguments) == 0 {
 			continue
+		} else if arguments[0] == "exit" {
+			break
 		}
 		cmd := command{Name: arguments[0], Args: arguments[1:]}
 		err := c.run(&csc, cmd)

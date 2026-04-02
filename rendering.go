@@ -8,7 +8,7 @@ import (
 	glamour "charm.land/glamour/v2"
 	lipgloss "charm.land/lipgloss/v2"
 	humanize "github.com/dustin/go-humanize"
-	client "github.com/johannesalke/CyberspaceClient/internal/cyberspaceClient"
+	client "github.com/johannesalke/cyberspacecli/internal/cyberspaceClient"
 )
 
 var (
@@ -65,9 +65,21 @@ func renderPost(post client.Post, fullPost bool) { //Full post should be set to 
 	if err != nil {
 		fmt.Println(err)
 	}
-	renderedMD, err := renderer.Render(post.Content)
-	if err != nil {
-		fmt.Println(err)
+	var renderedMD string
+
+	if fullPost == false && len(post.Content) > 500 {
+
+		//truncatedPost, _ := renderer.Render("...view post to continue")
+		renderedMD, err = renderer.Render(fmt.Sprintf("%.1000s   %s", post.Content, "...*view post to continue*"))
+		if err != nil {
+			fmt.Println(err)
+		}
+	} else {
+
+		renderedMD, err = renderer.Render(post.Content)
+		if err != nil {
+			fmt.Println(err)
+		}
 	}
 
 	if len(post.Topics) != 0 { //This block occurs if a post has topic tags. In that case, another dividing line is added and the topics are displayed below it.
