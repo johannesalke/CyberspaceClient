@@ -20,7 +20,8 @@ type APIClient struct {
 	Username          string
 	PostCache         map[string]Post         // key:PostID
 	NotificationCache map[string]Notification // key:PostID
-	Cursors           map[string]string       // key: whatever you want
+	NoteCache         map[string]Note
+	Cursors           map[string]string // key: whatever you want
 	LastStatusCode    int
 	Config            Config
 }
@@ -94,7 +95,7 @@ func (c *APIClient) UpdateConfig() (config Config) {
 
 	editor := os.Getenv("EDITOR")
 	if editor == "" {
-		editor = "vim" // fallback
+		editor = "nano" // fallback
 	}
 
 	cmd := exec.Command(editor, tmpFile.Name())

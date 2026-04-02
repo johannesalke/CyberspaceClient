@@ -76,13 +76,27 @@ func WriteContent() string {
 	return string(content)
 }
 
-func WriteTopics() []string {
-	fmt.Print("Content registered. You may now add up to three topics to the entry, seperated by commas:\n")
+func WriteTopics(oldTopics []string) []string {
+	if len(oldTopics) != 0 {
+		oldTopicsString := strings.Join(oldTopics, ", 0")
+		fmt.Printf("Content registered. You may now add up to three topics to the entry, seperated by commas. The notes previous topics were [%s]:\n", oldTopicsString)
+	} else {
+		fmt.Printf("Content registered. You may now add up to three topics to the entry, seperated by commas:\n")
+	}
+
 	scanner := bufio.NewScanner(os.Stdin)
 	scanner.Scan()
 	topicString := scanner.Text()
 	topics := strings.Split(topicString, ",")
 	return topics
+}
+
+func ConfirmPostIntention() bool {
+	fmt.Printf("Are you sure you wish to post? Type 'yes' to confirm:\n")
+	scanner := bufio.NewScanner(os.Stdin)
+	scanner.Scan()
+	choice := scanner.Text()
+	return "yes" == choice || "Yes" == choice
 }
 
 func EditNote(note Note) (CreateNoteInput, error) {
@@ -95,7 +109,7 @@ func EditNote(note Note) (CreateNoteInput, error) {
 
 	editor := os.Getenv("EDITOR")
 	if editor == "" {
-		editor = "vm" // fallback
+		editor = "nano" // fallback
 	}
 
 	cmd := exec.Command(editor, tmpFile.Name())
@@ -112,7 +126,7 @@ func EditNote(note Note) (CreateNoteInput, error) {
 		panic(err)
 	}
 
-	topics := note.Topics
+	topics := WriteTopics(note.Topics)
 	newNote := CreateNoteInput{Content: string(content), Topics: topics}
 
 	return newNote, nil

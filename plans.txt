@@ -1,0 +1,59 @@
+
+
+
+
+
+
+
+
+
+When the program is run, it takes in arguments. Based on this, it can take one of multiple paths:
+
+- cyberspace help: 
+
+- cyberspace config: Open the config file in your default text editor. It contains two types of values: Proper settings, and stored values such as 
+
+- cyberspace | cyberspace enter: Start the 'Main' cyberspace application.
+
+Main application sequence:
+
+1. Check config (using config function).
+
+2. If remember login is chosen and refresh token is present, try to Refresh. If it works, skip login. If it doesn't, say so and move on.
+
+3. If login wasn't skipped, check whether 'remember email' was seleted. If it was, give corresponding input to the auth function. If not, ask the user for their email 
+
+
+
+
+
+
+
+
+
+===========================================================
+How to handle old tokens:
+If a Client package function fails, check if the last status message was 401. 
+If it was, perform TokenRefresh, then retry the function.
+
+
+
+
+
+
+==============================
+Showing the feed
+
+What to show on the feed: Poster name, number of replies, number of saves, post id (for checking post directly)
+
+
+
+
+
+
+
+
+
+
+
+

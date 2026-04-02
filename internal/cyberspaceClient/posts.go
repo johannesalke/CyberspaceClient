@@ -46,6 +46,12 @@ type CreatePostInput struct {
 	} `json:"attachments"`
 }
 
+type CreatePostConfirmation struct {
+	Data struct {
+		PostID string `json:"postId"`
+	} `json:"data"`
+}
+
 func (c *APIClient) GetPosts(limit int, cursor string) (posts []Post, newCursor string, err error) {
 	url := makeGetUrl(c.ApiUrl+"/posts", limit, cursor)
 
@@ -92,15 +98,22 @@ func (c *APIClient) GetPostById(post_id string) (Post, error) {
 	return postConfirm.Data, nil
 }
 
-func (c *APIClient) CreatePost() error {
-
-	content := WriteContent() //See: utilities
-	topics := WriteTopics()   //See: utilities
-	postInput := CreatePostInput{
-		Content:  content,
-		Topics:   topics,
-		IsPublic: false,
-		IsNSFW:   false,
+func (c *APIClient) CreatePost(postInput CreatePostInput) (Post, error) {
+	writeInCLI := postInput.Content == ""
+	if writeInCLI {
+		content := WriteContent()         //See: utilities
+		topics := WriteTopics([]string{}) //See: utilities
+		postInput = CreatePostInput{
+			Content:  content,
+			Topics:   topics,
+			IsPublic: false,
+			IsNSFW:   false,
+		}
+	}
+	if writeInCLI {
+		if ConfirmPostIntention() == false {
+			return Post{}, nil
+		}
 	}
 	postJson, err := json.Marshal(postInput)
 	if err != nil {
@@ -108,21 +121,26 @@ func (c *APIClient) CreatePost() error {
 	}
 	req, err := makeRequest("POST", c.ApiUrl+"/posts", c.Tokens, bytes.NewBuffer(postJson))
 	if err != nil {
-		return fmt.Errorf("Error making post request:%s", err)
+		return Post{}, fmt.Errorf("Error making post request:%s", err)
 	}
 	res, err := c.sendRequest(req)
 	if err != nil {
-		return fmt.Errorf("Error sending post request:%s", err)
+		return Post{}, fmt.Errorf("Error sending post request:%s", err)
 	}
 
-	var postConfirm OnePostResponse
+	var postConfirm CreatePostConfirmation
+
 	decoder := json.NewDecoder(res.Body)
 	err = decoder.Decode(&postConfirm)
 	if err != nil {
-		return fmt.Errorf("Error decoding post json:%s", err)
+		return Post{}, fmt.Errorf("Error decoding post json:%s", err)
 	}
 	//fmt.Print(postConfirm)
-	return nil
+	postMade := Post{ //The response is just a post ID, so it's necessary to manually create the Post object for rendering on the client side. The alternative is to request the post from the server, but for optimization reasons (and becasue that is not possible for replies) I'm doing it the direct way.
+		Content: postInput.Content, Topics: postInput.Topics, PostID: postConfirm.Data.PostID,
+		IsPublic: postInput.IsPublic, IsNSFW: postInput.IsNSFW,
+	}
+	return postMade, nil
 }
 
 func (c *APIClient) DeletePost(postId string) error {

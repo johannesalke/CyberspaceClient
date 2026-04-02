@@ -56,8 +56,10 @@ func RenderBox(elements ...string) error {
 	return nil
 }
 
-func renderPost(post client.Post, fullPost bool) {
-	topline, _ := renderer.Render(fmt.Sprintln("@"+post.AuthorUsername, " | ", post.RepliesCount, " replies | ", post.PostID))
+func renderPost(post client.Post, fullPost bool) { //Full post should be set to false in the feed to truncate posts in the feed. THis is not implemented yet!
+
+	simpleID, _ := simplifyID(post.PostID)
+	topline, _ := renderer.Render(fmt.Sprintln("@"+post.AuthorUsername, " | ", post.RepliesCount, " replies | Id: ", simpleID))
 
 	seperator, err := renderer.Render(strings.Repeat("─", 80))
 	if err != nil {
@@ -88,11 +90,12 @@ func renderPost(post client.Post, fullPost bool) {
 }
 
 func renderReply(reply client.Reply) {
+	simpleID, _ := simplifyID(reply.ReplyID)
 	responseTarget := reply.ParentPostAuthor
 	if reply.ParentReplyAuthor != "" {
 		responseTarget = reply.ParentReplyAuthor
 	}
-	topline, _ := renderer.Render(fmt.Sprintln("@"+reply.AuthorUsername, " | ", "Responding to @"+responseTarget, " | ", reply.ReplyID))
+	topline, _ := renderer.Render(fmt.Sprintln("@"+reply.AuthorUsername, " | ", "Responding to @"+responseTarget, " | Id: ", simpleID))
 
 	seperator, err := renderer.Render(strings.Repeat("─", 80))
 	if err != nil {
@@ -109,13 +112,55 @@ func renderReply(reply client.Reply) {
 
 }
 
-func renderNotification(csc *client.APIClient, n client.Notification) {
+type Note struct {
+	NoteID         string    `json:"noteId"`
+	RevisionNumber int       `json:"revisionNumber"`
+	AuthorID       string    `json:"authorId"`
+	Content        string    `json:"content"`
+	Deleted        bool      `json:"deleted"`
+	Topics         []string  `json:"topics,omitempty"`
+	CreatedAt      time.Time `json:"createdAt"`
+}
 
+func renderNote(note client.Note, fullNote bool) { //Full note should be set to false in the feed to truncate posts in the feed. THis is not implemented yet!
+	simpleID, _ := simplifyID(note.NoteID)
+	topline, _ := renderer.Render(fmt.Sprintln("Id: ", simpleID))
+
+	seperator, err := renderer.Render(strings.Repeat("─", 80))
+	if err != nil {
+		fmt.Println(err)
+	}
+	renderedMD, err := renderer.Render(note.Content)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	if len(note.Topics) != 0 { //This block occurs if a post has topic tags. In that case, another dividing line is added and the topics are displayed below it.
+
+		topics, err := renderer.Render("Topics: " + strings.Join(note.Topics, ", "))
+		if err != nil {
+			fmt.Println(err)
+		}
+		err = RenderBox(topline, seperator, renderedMD, seperator, topics)
+		if err != nil {
+			fmt.Println(err)
+		}
+	} else { // Otherwise, just render normally.
+		err = RenderBox(topline, seperator, renderedMD)
+		if err != nil {
+			fmt.Println(err)
+		}
+	}
+
+}
+
+func renderNotification(csc *client.APIClient, n client.Notification) {
+	simpleID, _ := simplifyID(n.TargetID)
 	//timeSince :=time.Since(n.CreatedAt)
 	timeSince := humanize.RelTime(time.Now(), n.CreatedAt, "in the future", "ago")
 	var id = ""
 	if n.Type == "new_post_friend" || n.Type == "new_post_following" || n.Type == "reply" {
-		id = "| Id: " + n.TargetID
+		id = fmt.Sprintln("| Id: ", simpleID)
 	}
 
 	notification_string := fmt.Sprintf("User: %s | Type: %s | %s %s", n.ActorUsername, n.Type, timeSince, id)

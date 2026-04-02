@@ -77,15 +77,15 @@ func (c *APIClient) GetNoteById(note_id string) (Note, error) {
 	return oneNote.Data, nil
 }
 
-func (c *APIClient) CreateNote(noteInput CreateNoteInput) (string, error) {
-
-	/*
-		content := WriteContent()
-		topics := WriteTopics()
+func (c *APIClient) CreateNote(noteInput CreateNoteInput) (Note, error) {
+	if noteInput.Content == "" {
+		content := WriteContent()         //See: utilities
+		topics := WriteTopics([]string{}) //See: utilities
 		noteInput = CreateNoteInput{
 			Content: content,
 			Topics:  topics,
-		}*/
+		}
+	}
 
 	postJson, err := json.Marshal(noteInput)
 	if err != nil {
@@ -93,11 +93,11 @@ func (c *APIClient) CreateNote(noteInput CreateNoteInput) (string, error) {
 	}
 	req, err := makeRequest("POST", c.ApiUrl+"/notes", c.Tokens, bytes.NewBuffer(postJson))
 	if err != nil {
-		return "", fmt.Errorf("Error making post request:%s", err)
+		return Note{}, fmt.Errorf("Error making post request:%s", err)
 	}
 	res, err := c.sendRequest(req)
 	if err != nil {
-		return "", fmt.Errorf("Error sending post request:%s", err)
+		return Note{}, fmt.Errorf("Error sending post request:%s", err)
 	}
 
 	var noteConfirm struct {
@@ -108,21 +108,25 @@ func (c *APIClient) CreateNote(noteInput CreateNoteInput) (string, error) {
 	decoder := json.NewDecoder(res.Body)
 	err = decoder.Decode(&noteConfirm)
 	if err != nil {
-		return "", fmt.Errorf("Error decoding post json:%s", err)
+		return Note{}, fmt.Errorf("Error decoding post json:%s", err)
 	}
 	//fmt.Print(postConfirm)
-	return noteConfirm.Data.NoteID, nil
+	noteMade := Note{ //The response is just a post ID, so it's necessary to manually create the Post object for rendering on the client side. The alternative is to request the post from the server, but for optimization reasons (and becasue that is not possible for replies) I'm doing it the direct way.
+		Content: noteInput.Content, Topics: noteInput.Topics, NoteID: noteConfirm.Data.NoteID,
+		//IsPublic: postInput.IsPublic, IsNSFW: postInput.IsNSFW,
+	}
+	return noteMade, nil
 }
 
-func (c *APIClient) UpdateNote(noteInput CreateNoteInput, noteID string) (string, error) {
-
-	/*
-		content := WriteContent()
-		topics := WriteTopics()
+func (c *APIClient) UpdateNote(noteInput CreateNoteInput, noteID string) (Note, error) {
+	if noteInput.Content == "" {
+		content := WriteContent()         //See: utilities
+		topics := WriteTopics([]string{}) //See: utilities
 		noteInput = CreateNoteInput{
 			Content: content,
 			Topics:  topics,
-		}*/
+		}
+	}
 
 	postJson, err := json.Marshal(noteInput)
 	if err != nil {
@@ -130,11 +134,11 @@ func (c *APIClient) UpdateNote(noteInput CreateNoteInput, noteID string) (string
 	}
 	req, err := makeRequest("PATCH", c.ApiUrl+"/notes/"+noteID, c.Tokens, bytes.NewBuffer(postJson))
 	if err != nil {
-		return "", fmt.Errorf("Error making post request:%s", err)
+		return Note{}, fmt.Errorf("Error making post request:%s", err)
 	}
 	res, err := c.sendRequest(req)
 	if err != nil {
-		return "", fmt.Errorf("Error sending post request:%s", err)
+		return Note{}, fmt.Errorf("Error sending post request:%s", err)
 	}
 
 	var noteConfirm struct {
@@ -145,10 +149,14 @@ func (c *APIClient) UpdateNote(noteInput CreateNoteInput, noteID string) (string
 	decoder := json.NewDecoder(res.Body)
 	err = decoder.Decode(&noteConfirm)
 	if err != nil {
-		return "", fmt.Errorf("Error decoding post json:%s", err)
+		return Note{}, fmt.Errorf("Error decoding post json:%s", err)
 	}
 	//fmt.Print(postConfirm)
-	return noteConfirm.Data.NoteID, nil
+	noteUpdated := Note{ //The response is just a post ID, so it's necessary to manually create the Post object for rendering on the client side. The alternative is to request the post from the server, but for optimization reasons (and becasue that is not possible for replies) I'm doing it the direct way.
+		Content: noteInput.Content, Topics: noteInput.Topics, NoteID: noteConfirm.Data.NoteID,
+		//IsPublic: postInput.IsPublic, IsNSFW: postInput.IsNSFW,
+	}
+	return noteUpdated, nil
 }
 
 func (c *APIClient) DeleteNote(postId string) error {

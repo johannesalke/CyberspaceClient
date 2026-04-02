@@ -2,9 +2,14 @@ package main
 
 import (
 	"bufio"
+	"maps"
+	"slices"
+	"strconv"
+
 	//"github.com/fatih/color"
 	"os/signal"
 	"syscall"
+
 	//"bytes"
 	//"encoding/json"
 	"fmt"
@@ -28,10 +33,15 @@ type Config struct {
 	client   http.Client
 }
 
+var IDmap = make(map[int]string)
+var reverseIDmap = make(map[string]int)
+
 //
 
 func main() {
 	//fmt.Print(err)
+	IDmap[0] = "existence"
+	reverseIDmap["nonexistence"] = 0
 
 	//renderer, _ := glamour.NewTermRenderer(glamour.WithStylePath("dark"))
 	//out, _ := renderer.Render("# Heading\n\n**Bold text**\n\n- List item")
@@ -56,7 +66,7 @@ func main() {
 
 	defer fmt.Print("\033[0m")
 	//fmt.Print("\172[0m") fmt.Print("\033[38;5;203m")
-	fmt.Print("\033[38;5;223m")
+	fmt.Print("\033[38;5;172m")
 
 	var csc = client.InitAPIClient()
 	//fmt.Print(csc)
@@ -81,7 +91,8 @@ func main() {
 	c := commands{make(map[string]func(*client.APIClient, command) error)}
 	c.register("view", handlerView)
 	c.register("write", handlerWrite)
-	c.register("note", handlerUpdateNote)
+	c.register("edit", handlerEdit)
+	c.register("publish", handlerPublish)
 	//c.register("config", handlerUpdateConfig)
 
 	scanner := bufio.NewScanner(os.Stdin)
@@ -101,7 +112,7 @@ func main() {
 			csc.TokenRefresh()
 			err = c.run(&csc, cmd)
 		}
-		fmt.Print("\033[38;5;223m")
+		fmt.Print("\033[38;5;172m")
 		if err != nil {
 			fmt.Println(err)
 		}
@@ -150,9 +161,10 @@ func handlerView(csc *client.APIClient, cmd command) error { // Redirects to han
 		return handlerViewPost(csc, cmd)
 	case "notes":
 		return handlerViewNotes(csc, cmd)
-
+	default:
+		return fmt.Errorf("Unknown argument. Valid arguments for view: feed, post <id>, notifications, notes.\n")
 	}
-	return nil
+
 }
 
 func handlerWrite(csc *client.APIClient, cmd command) error {
@@ -164,23 +176,75 @@ func handlerWrite(csc *client.APIClient, cmd command) error {
 	switch cmd.Args[0] {
 	case "post":
 		return handlerWritePost(csc, cmd)
-
 	case "note":
-		return handlerViewNotifications(csc, cmd)
-	case "":
-		return handlerViewPost(csc, cmd)
-	case "notes":
-		return handlerViewNotes(csc, cmd)
+		return handlerWriteNote(csc, cmd)
+	default:
+		return fmt.Errorf("Unknown argument. Valid arguments for write: post, note.\n")
 
 	}
-	return nil
+
+}
+
+func handlerEdit(csc *client.APIClient, cmd command) error {
+	if len(cmd.Args) == 0 {
+		renderPrint("The 'edit' command requires an argument. Valid arguments: note <note_id>, config\n")
+		return nil
+	}
+
+	switch cmd.Args[0] {
+	case "note":
+		return handlerEditNote(csc, cmd)
+	case "config":
+		return handlerEditConfig(csc, cmd)
+	default:
+		return fmt.Errorf("Unknown argument. Valid arguments for write: post, note.\n")
+
+	}
+
+}
+
+func handlerPublish(csc *client.APIClient, cmd command) error {
+	if len(cmd.Args) != 2 {
+		renderPrint("The 'publish' command requires two extra arguments: note & <note_id>\n")
+		return nil
+	}
+
+	switch cmd.Args[0] {
+	case "note":
+		return handlerPublishNote(csc, cmd)
+	default:
+		return fmt.Errorf("Unknown argument. Valid arguments for publish: note.\n")
+
+	}
+
 }
 
 //////////////////| View Handlers |///////////////////////////////
 
 func handlerViewFeed(csc *client.APIClient, cmd command) error {
+	if len(cmd.Args) == 2 && cmd.Args[1] == "new" { //Check for new posts rather than going further down the feed
+		cursor_temp := csc.Cursors["feed"]
+		var old_posts = false
+		for i := 0; !old_posts && i < 5; i++ { //Gets up to 15 posts from the start of the feed. If any set of 3 includes old posts, stop getting posts.
+			posts, _, err := csc.GetPosts(4, "")
+			if err != nil {
+				return err
+			}
+			for _, post := range posts {
+				if post.IsNSFW == true {
+					continue
+				}
+				renderPost(post, false)
+				_, old_posts = simplifyID(post.PostID) //Checks if this iteration crossed into new posts.
+			}
+		}
+		csc.Cursors["feed"] = cursor_temp
+		return nil
+	} else if len(cmd.Args) == 2 && cmd.Args[1] == "reset" { //Permanently reset the cursor.
+		csc.Cursors["feed"] = ""
+	}
 
-	posts, _, err := csc.GetPosts(5, csc.Cursors["feed"])
+	posts, _, err := csc.GetPosts(5, csc.Cursors["feed"]) //Normal feed viewing.
 	if err != nil {
 		return err
 	}
@@ -192,17 +256,22 @@ func handlerViewFeed(csc *client.APIClient, cmd command) error {
 
 	}
 	return nil
-}
+} // Complete ~
 
 func handlerViewPost(csc *client.APIClient, cmd command) error {
 
-	post_id := cmd.Args[0]
-	post, err := csc.GetPostById(post_id)
+	post_id := cmd.Args[1]
+
+	fullPostID, err := getFullID(post_id)
+	if err != nil {
+		fmt.Print(err)
+	}
+	post, err := csc.GetPostById(fullPostID)
 	if err != nil {
 		fmt.Print(err)
 	}
 	renderPost(post, true)
-	replies, _, err := csc.GetReplies(post_id, 20, "")
+	replies, _, err := csc.GetReplies(fullPostID, 20, "")
 	if err != nil {
 		fmt.Print(err)
 	}
@@ -217,9 +286,23 @@ func handlerViewPost(csc *client.APIClient, cmd command) error {
 		fmt.Print(err)
 	}
 	return nil
-}
+} // Complete ~
 
 func handlerViewNotifications(csc *client.APIClient, cmd command) error {
+	if len(cmd.Args) == 2 && cmd.Args[1] == "new" { //Check for new notifs rather than going further down the feed
+		cursor_temp := csc.Cursors["notifications"]
+		notifications, _, err := csc.GetNotifications(10, "")
+		if err != nil {
+			fmt.Printf("Error getting notifs: %s", err)
+		}
+		for _, notification := range notifications {
+			renderNotification(csc, notification)
+		}
+		csc.Cursors["notifications"] = cursor_temp
+		return nil
+	} else if len(cmd.Args) == 2 && cmd.Args[1] == "reset" { //reset the notification cursor.
+		csc.Cursors["notifications"] = ""
+	}
 
 	notifications, new_cursor, err := csc.GetNotifications(10, csc.Cursors["notifications"])
 	if err != nil {
@@ -230,88 +313,147 @@ func handlerViewNotifications(csc *client.APIClient, cmd command) error {
 		renderNotification(csc, notification)
 	}
 	return nil
-}
+} // Complete ~
 
 func handlerViewNotes(csc *client.APIClient, cmd command) error {
+	notes, _, err := csc.GetNotes(10, csc.Cursors["notes"])
+	if err != nil {
+		return err
+	}
+	var already_displayed_notes []string //If a note was edited before, the List Notes API will send you all versions of it. This counter is there to ensure only the most up-to-date version is displayed.
+	for _, note := range notes {
+		if slices.Contains(already_displayed_notes, note.NoteID) {
+			continue //Skip notes that already had a newer version displayed
+		}
+		renderNote(note, true)
+		already_displayed_notes = append(already_displayed_notes, note.NoteID)
+
+	}
 	return nil
-}
+} // Complete ~
+
+func handlerViewBookmarks(csc *client.APIClient, cmd command) error {
+
+	return nil
+} // Empty
 
 ///////////////| Writing Handlers |////////////////////////
 
 func handlerWritePost(csc *client.APIClient, cmd command) error {
-	err := csc.CreatePost()
+	post, err := csc.CreatePost(client.CreatePostInput{})
 	if err != nil {
 		fmt.Print(err)
 	}
+	if post.Content == "" { //If the user either wrote nothing in the document, or didn't confirm intention to post.
+		return nil
+	}
+	renderPost(post, true)
 	return nil
-}
+} //|Complete
+
+func handlerWriteNote(csc *client.APIClient, cmd command) error {
+	note, err := csc.CreateNote(client.CreateNoteInput{})
+	if err != nil {
+		fmt.Print(err)
+	}
+	renderNote(note, true)
+	return nil
+} //|Complete
 
 ////////////////| Editing Handlers |////////////////////////////
 
-func handlerUpdateConfig(csc *client.APIClient, cmd command) error {
+func handlerEditConfig(csc *client.APIClient, cmd command) error {
 
 	csc.UpdateConfig()
 	return nil
-}
+} //|Complete
 
-func handlerUpdateNote(csc *client.APIClient, cmd command) error {
-	if len(cmd.Args) != 1 {
-		return fmt.Errorf("This command requiers one argument: The idea of the note to be updated.")
+func handlerEditNote(csc *client.APIClient, cmd command) error {
+	if len(cmd.Args) != 2 {
+		return fmt.Errorf("This command requiers an additional argument: The id of the note to be edited.")
 	}
+	note_id := cmd.Args[1]
 
-	Note, err := csc.GetNoteById(cmd.Args[0])
+	fullNoteID, err := getFullID(note_id)
+	Note, err := csc.GetNoteById(fullNoteID)
 	if err != nil {
 		return fmt.Errorf("Error: %s ", err)
 
 	}
-	newNote, err := client.EditNote(Note)
+	newNoteInput, err := client.EditNote(Note)
 	if err != nil {
 		return fmt.Errorf("Error: %s ", err)
 
 	}
-	id, err := csc.UpdateNote(newNote, cmd.Args[0])
+	newNote, err := csc.UpdateNote(newNoteInput, fullNoteID)
 	if err != nil {
 		return fmt.Errorf("Error: %s ", err)
 
 	}
-	fmt.Print(id, "\n")
+
+	renderNote(newNote, true)
+	fmt.Print(newNote.NoteID, "\n")
+	return nil
+} //|Complete
+
+////////////////| Publish Handler |////////////////////////////
+
+func handlerPublishNote(csc *client.APIClient, cmd command) error {
+	if len(cmd.Args) != 2 {
+		return fmt.Errorf("This command requiers an additional argument: The id of the note to be published.")
+	}
+	note_id := cmd.Args[1]
+
+	fullNoteID, err := getFullID(note_id)
+	note, err := csc.GetNoteById(fullNoteID)
+	if err != nil {
+		return fmt.Errorf("Error: %s ", err)
+
+	}
+	postInput := client.CreatePostInput{Content: note.Content, Topics: note.Topics}
+	post, err := csc.CreatePost(postInput)
+	if err != nil {
+		return fmt.Errorf("Error publishing note: %s", err)
+	}
+	renderPost(post, true)
 	return nil
 }
 
-////////////////////////////| Posts |///////////////////////////
+////////////////////| id utilities |////////////////////////////////
 
-/*
-func (cfg *Config) sendRequest() {
-	body := []byte(`{"name":"John"}`)
+//var IDmap = make(map[int]string)
+//var reverseIDmap = make(map[string]int)
 
-	req, err := makeRequest()
-	if err != nil {
-		panic(err)
+func simplifyID(fullID string) (simpleID int, exists bool) {
+	currentValue := reverseIDmap[fullID] //Check if post already exists in database
+	if currentValue != 0 {
+		//fmt.Print("Id already exists, fam.")
+		return currentValue, true
 	}
 
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer ") //+cfg.tokens.IDToken
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		panic(err)
+	//If it does not already exists
+	idKeys := maps.Keys(IDmap)
+	var idKeysSlice []int
+	for key := range idKeys {
+		idKeysSlice = append(idKeysSlice, key)
 	}
-	defer resp.Body.Close()
+
+	maxValue := slices.Max(idKeysSlice)
+	newSimpleID := maxValue + 1
+	IDmap[newSimpleID] = fullID
+	reverseIDmap[fullID] = newSimpleID
+	return newSimpleID, false
 }
 
-func
-
-	res, err := http.DefaultClient.Do(req)
-
-	if res.StatusCode == 401 {
-		tokens = auth.TokenRefresh(url, tokens)
-		req, err := http.NewRequest(method, url, body)
-		req.Header.Set("Authorization", "Bearer "+tokens.IDToken)
-
-		res, err = http.DefaultClient.Do(req)
-
-		if res.StatusCode
+func getFullID(simpleID string) (fullID string, err error) {
+	simpleIDString, err := strconv.Atoi(simpleID)
+	if err != nil {
+		fmt.Print(err)
 	}
-	return req, nil
-*/
+	fullID = IDmap[simpleIDString]
+	if fullID == "" {
+		return "", fmt.Errorf("There is no object with this id")
+	}
+	return fullID, nil
+
+}
