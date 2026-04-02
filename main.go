@@ -246,7 +246,7 @@ func handlerViewFeed(csc *client.APIClient, cmd command) error {
 		csc.Cursors["feed"] = ""
 	}
 
-	posts, _, err := csc.GetPosts(5, csc.Cursors["feed"]) //Normal feed viewing.
+	posts, _, err := csc.GetPosts(10, csc.Cursors["feed"]) //Normal feed viewing.
 	if err != nil {
 		return err
 	}
