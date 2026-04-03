@@ -210,6 +210,43 @@ func renderPrint(str string) {
 	fmt.Print(renderer.Render(str))
 }
 
-func renderBookmark(bookmark client.Bookmark) {
+func renderProfile(user client.User) {
+
+	timeSince := humanize.Time(user.CreatedAt)
+	guild := ""
+	if user.GuildSlug != "" {
+		guild = "| " + user.GuildSlug
+	}
+	supporter := ""
+	if user.IsSupporter {
+		supporter = "| SUPPORTER"
+	}
+
+	topline, _ := renderer.Render(fmt.Sprintln("@"+user.Username, supporter, guild, "| Joined "+timeSince))
+
+	seperator, err := renderer.Render(strings.Repeat("─", 80))
+	if err != nil {
+		fmt.Println(err)
+	}
+	var renderedMD string
+
+	renderedMD, err = renderer.Render(user.Bio)
+	if err != nil {
+		fmt.Println(err)
+	}
+	if user.WebsiteName != "" {
+
+		bottomline, _ := renderer.Render(fmt.Sprintln(user.WebsiteURL))
+		err = RenderBox(topline, seperator, renderedMD, seperator, bottomline)
+		if err != nil {
+			fmt.Println(err)
+		}
+	} else {
+
+		err = RenderBox(topline, seperator, renderedMD)
+		if err != nil {
+			fmt.Println(err)
+		}
+	}
 
 }

@@ -5,6 +5,7 @@ import (
 	"maps"
 	"slices"
 	"strconv"
+	"time"
 
 	//"github.com/fatih/color"
 	"os/signal"
@@ -66,12 +67,14 @@ func main() {
 	 ╚═════╝   ╚═╝   ╚═════╝ ╚══════╝╚═╝  ╚═╝╚══════╝╚═╝     ╚═╝  ╚═╝ ╚═════╝╚══════╝
 `)
 
+	time.Sleep(500 * time.Millisecond)
 	defer fmt.Print("\033[0m")
 	//fmt.Print("\172[0m") fmt.Print("\033[38;5;203m")
 	fmt.Print("\033[38;5;172m")
 
 	var csc = client.InitAPIClient()
-
+	fmt.Print("You are now con-nec-ted\n")
+	time.Sleep(500 * time.Millisecond)
 	//fmt.Print(csc)
 	csc.Config = client.GetConfig()
 	//fmt.Print(csc.Config)
@@ -88,15 +91,16 @@ func main() {
 	} else {
 		csc.Tokens = client.Login(csc.ApiUrl)
 	}
+	time.Sleep(500 * time.Millisecond)
 	user, err := csc.GetMyUserProfile()
 	if err != nil {
 		fmt.Print(err)
 	}
 	csc.Username = user.Username
 
-	fmt.Print("You are now con-nec-ted\n")
 	fmt.Printf("Welcome to Cyberspace, @%s\n", csc.Username)
-	fmt.Printf("[authToken: %.10s...]\n", csc.Tokens.IDToken)
+	time.Sleep(500 * time.Millisecond)
+	//fmt.Printf("[authToken: %.10s...]\n", csc.Tokens.IDToken)
 
 	c := commands{make(map[string]func(*client.APIClient, command) error)}
 	c.register("view", handlerView)
@@ -177,6 +181,10 @@ func handlerView(csc *client.APIClient, cmd command) error { // Redirects to han
 		return handlerViewNotes(csc, cmd)
 	case "bookmarks":
 		return handlerViewBookmarks(csc, cmd)
+	case "profile":
+		return handlerViewProfile(csc, cmd)
+	case "user":
+		return handlerViewProfile(csc, cmd)
 	default:
 		return fmt.Errorf("Unknown argument. Valid arguments for view: feed, post <id>, notifications, notes.\n")
 	}
@@ -253,7 +261,7 @@ func handlerBookmark(csc *client.APIClient, cmd command) error {
 func handlerHelp(csc *client.APIClient, cmd command) error {
 	fmt.Print(`
 
-CyberspaceCLI supports the following commands: 
+ CyberspaceCLI supports the following commands: 
 
 - view feed (optional_arg): Load 10 posts from the feed, starting at the newest. Every time the command is used, 10 more are loaded starting from where the previous iteration stopped. In the feed, posts are truncated at 1000 characters. To see the whole post, use the 'view post' command. 
   - Use the optional argument 'new' to load posts made since you started the client without losing the marker of the basic command. 
@@ -428,6 +436,32 @@ func handlerViewBookmarks(csc *client.APIClient, cmd command) error {
 } // Limited function due to inability to target specific replies for retrieval.
 
 func handlerViewProfile(csc *client.APIClient, cmd command) error {
+	if len(cmd.Args) != 2 {
+		fmt.Print("This command requires a target. Either a username or 'me' for your own profile.")
+		return nil
+	}
+	target := cmd.Args[1]
+	if target[0] == '@' {
+		target = string(target[1:])
+	}
+	var user client.User
+	var err error
+	if target == "me" {
+		user, err = csc.GetMyUserProfile()
+	} else {
+		user, err = csc.GetUserProfileByName(target)
+	}
+	if err != nil {
+		return err
+	}
+	renderProfile(user)
+	if user.PinnedPostID != "" {
+		pinnedPost, err := csc.GetPostById(user.PinnedPostID)
+		if err != nil {
+			return err
+		}
+		renderPost(pinnedPost, true)
+	}
 
 	return nil
 } // Empty

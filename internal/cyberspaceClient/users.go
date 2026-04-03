@@ -83,7 +83,7 @@ func (c *APIClient) GetUserProfileByName(username string) (User, error) {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Print(userResponse.Data)
+	//fmt.Print(userResponse.Data)
 	return userResponse.Data, nil
 }
 
