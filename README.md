@@ -9,6 +9,8 @@
 
 ### Cyberspace CLI Client Prototype
 
+This is a Commandline Client for the social network platform [Cyberspace](https://cyberspace.online/). It is currently in an alpha state.
+
 At present, this client has solid basic functions and presentation, but is definitely not yet finished.
 You can check your feed and notifications, make posts as well as write, edit and publish notes.
 You can not yet reply to people, check their profiles, or search for specific topics. 
@@ -45,8 +47,12 @@ Use the optional argument 'new' to load posts made since you started the client 
 - `write note`: Same as 'write post', but your writing is put in your journal instead.
 - `edit note <note_id`: Opens a note in your default text editor (if none, nano) and lets you edit it.
 - `post <note_id>`: Posts a note to the feed, making it visible to other users. 
-- `edit config`: This lets you edit the client's config file. If you set 'stay logged in' to true, the client will save your refresh token and you will remain logged in across sessions. The config file should be in your .config or appdata folder, depending on whether you use linux or windows. 
+- `edit config`: This lets you edit the client's config file. If you set 'stay logged in' to true, the client will save your refresh token and you will remain logged in across sessions. The config file should be in your .config/ or Library/Application Support/ directories, depending on whether you use linux or apple.
 - `exit`: exit
+
+### Limitations
+
+The client doesn't work on Windows, because it uses traits of the Linux terminal to format the output & edit documents. If you run Windows, there are two ways of quickly getting around that: Install [WSL](https://learn.microsoft.com/en-us/windows/wsl/install), an official Linux subsystem for Windows, or use a different client. From conversation with the dev, I know that cyberspace user @Ragnar's TUI client works just fine on windows due to having a different technological foundation. You can find it [here](https://github.com/ArmadilloBrillo/cyber-tui).
 
 
 ### Note:

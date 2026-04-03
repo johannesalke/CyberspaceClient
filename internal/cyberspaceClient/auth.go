@@ -7,7 +7,7 @@ import (
 	"golang.org/x/term"
 	"net/http"
 	"os"
-	"syscall"
+	//"syscall"
 )
 
 /*Contents: This package contains all functions related to authentication. They fall into 3 categories:
@@ -44,7 +44,7 @@ func Login(url string) AuthTokens { //client http.Client,
 	}
 	fmt.Print("To sign in, please enter your password:\n")
 	//fmt.Scan(&password)
-	password, err := term.ReadPassword(syscall.Stdin)
+	password, err := term.ReadPassword(int(os.Stdin.Fd()))
 	if err != nil {
 		fmt.Println("Error reading password:", err)
 		os.Exit(1)
