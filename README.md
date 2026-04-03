@@ -44,12 +44,15 @@ Use the optional argument 'new' to load posts made since you started the client 
 - `view post <post_id>`: This command shows the post specified by the id argument, plus the first 20 comments.
 - `view notifications (optional_arg)`: Load 10 notifications. If the notification is for a post or reply, you can use the shown id to open that post. Supports the same optional arguments as 'view feed'
 - `view notes`: Loads 10 notes from your journal.
+- `view bookmarks`: Load 10 bookmarks. Due to current API limitations, only bookmarked posts can be displayed, but not bookmarked replies. 
+- `view profile <username>`: Displays a simplified version of that users profile, as well as their pinned post if they have one. Use 'me' as the username to see your own profile.
 - `write post`: Opens your default text editor (or if you have non, nano (use ctrl+s, ctrl+x to exit)) and lets you write a post. Be aware that it might fail to post, so don't invest too much effort into it without copying the contents elsewhere before saving and closing the editor. After closing the editor, you'll have a chance to choose topics for the post.
 - `write reply <target_id>`: Write a reply to the post or reply whose id you gave. Will ask for final confirmation before posting. 
 - `write note`: Same as 'write post', but your writing is put in your journal instead.
 - `edit note <note_id`: Opens a note in your default text editor (if none, nano) and lets you edit it.
-- `post <note_id>`: Posts a note to the feed, making it visible to other users. 
+- `publish <note_id>`: Posts a note to the feed, making it visible to other users. 
 - `edit config`: This lets you edit the client's config file. If you set 'stay logged in' to true, the client will save your refresh token and you will remain logged in across sessions. The config file should be in your .config/ or Library/Application Support/ directories, depending on whether you use linux or apple.
+- `bookmark <target_id`: Bookmarks the post or reply whose id was given as an argument.
 - `help`: Prints instructions to the console.
 - `exit`: exit
 
