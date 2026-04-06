@@ -1,3 +1,5 @@
+//go:build windows
+
 package main
 
 import (
@@ -16,8 +18,7 @@ var (
 			Width(86).
 			MarginLeft(4).
 			Padding(0, 2, 0, 2).
-			Foreground(lipgloss.Color("#ff9a10")).
-			BorderForeground(lipgloss.Color("#744b0f"))
+			
 
 	boxTop = lipgloss.NewStyle().Inherit(basicBox).
 		Border(lipgloss.RoundedBorder(), true, true, false, true).
@@ -39,7 +40,6 @@ var (
 )
 
 var renderer, err = glamour.NewTermRenderer(
-	glamour.WithStylePath("style.json"),
 	glamour.WithWordWrap(80))
 
 func RenderBox(elements ...string) error {

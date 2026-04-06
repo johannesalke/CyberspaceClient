@@ -1,4 +1,4 @@
-# ᑕ¥βєяรקค¢є API v0.2
+# ᑕ¥βєяรקค¢є API v0.3.2
 
 ## Authentication
 
@@ -202,6 +202,12 @@ GET /v1/posts/:postId/replies?limit=20&cursor=<replyId>
 ```
 
 Replies are ordered oldest first.
+
+### Get Reply
+
+```
+GET /v1/replies/:id
+```
 
 ### Create Reply
 
@@ -416,19 +422,32 @@ Returns `{ "data": { "updated": 12 } }` with the count of notifications marked r
 
 Notes are private to you. No other user can see them.
 
+Notes support **revisions** — editing a note creates a new revision rather than overwriting the original. The API returns the latest revision by default.
+
 ### List Notes
 
 ```
-GET /v1/notes?limit=20&cursor=<noteId>
+GET /v1/notes?limit=20&cursor=<cursor>
 ```
 
-Rate limit: 20/min.
+Returns the latest revision of each note. Rate limit: 20/min.
 
 ### Get Note
 
 ```
 GET /v1/notes/:id
+GET /v1/notes/:id?revision=2
 ```
+
+Returns the latest revision by default. Pass `?revision=N` to retrieve a specific revision number.
+
+### List Revisions
+
+```
+GET /v1/notes/:id/revisions?limit=20&cursor=<cursor>
+```
+
+Returns all revisions for a note, newest first (by revision number).
 
 ### Create Note
 
@@ -461,11 +480,15 @@ PATCH /v1/notes/:id
 }
 ```
 
+Creates a new revision. The previous content is preserved and accessible via the revisions endpoint.
+
 ### Delete Note
 
 ```
 DELETE /v1/notes/:id
 ```
+
+Soft-deletes all revisions of the note.
 
 ---
 
@@ -567,33 +590,9 @@ Posts and replies can include up to 1 attachment.
 
 ## Chat & DMs (Realtime Database)
 
-Chat and DMs do not go through this API. Use the `rtdbToken` from login to connect directly to Firebase Realtime Database.
+Chat (cIRC) and direct messages (C-Mail) use Firebase Realtime Database, not this REST API. The `rtdbToken` returned from login grants access.
 
-### Chat (cIRC)
-
-```
-# Stream messages from a room
-GET https://<project>.firebaseio.com/chat_messages/<roomSlug>.json?auth=<rtdbToken>&orderBy="timestamp"
-Accept: text/event-stream
-
-# Send a message
-PUT https://<project>.firebaseio.com/chat_messages/<roomSlug>/<msgId>.json?auth=<rtdbToken>
-{ "authorId": "...", "username": "...", "content": "...", "timestamp": { ".sv": "timestamp" } }
-```
-
-### Direct Messages (C-Mail)
-
-```
-# Stream messages from a conversation
-GET https://<project>.firebaseio.com/dm_messages/<conversationId>.json?auth=<rtdbToken>&orderBy="timestamp"
-Accept: text/event-stream
-
-# Send a DM
-PUT https://<project>.firebaseio.com/dm_messages/<conversationId>/<msgId>.json?auth=<rtdbToken>
-{ "senderId": "...", "senderUsername": "...", "content": "...", "timestamp": { ".sv": "timestamp" }, "read": false }
-```
-
-Messages max 2,048 characters. Username must match your canonical username (enforced by security rules).
+Full RTDB documentation (endpoints, pagination, presence, and rate limits) is coming soon.
 
 ---
 
