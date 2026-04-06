@@ -16,7 +16,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-
+	"runtime"
 	//"os/exec"
 	"strings"
 	//"time"
@@ -40,6 +40,8 @@ var reverseIDmap = make(map[string]int)
 
 func main() {
 
+	operatingSystem := runtime.GOOS
+
 	//fmt.Print(err)
 	IDmap[0] = "existence"
 	reverseIDmap["nonexistence"] = 0
@@ -54,7 +56,9 @@ func main() {
 	signal.Notify(ch, os.Interrupt, syscall.SIGTERM)
 	go func() {
 		<-ch
-		fmt.Print("\033[0m") // Reset on interrupt
+		if operatingSystem != "windows" {
+			fmt.Print("\033[0m") // Reset on interrupt
+		}
 		fmt.Print("\n")
 		os.Exit(0)
 	}()
@@ -70,7 +74,9 @@ func main() {
 	time.Sleep(500 * time.Millisecond)
 	defer fmt.Print("\033[0m")
 	//fmt.Print("\172[0m") fmt.Print("\033[38;5;203m")
-	fmt.Print("\033[38;5;172m")
+	if operatingSystem != "windows" {
+		fmt.Print("\033[38;5;172m")
+	}
 
 	var csc = client.InitAPIClient()
 	fmt.Print("You are now con-nec-ted\n")
@@ -130,7 +136,9 @@ func main() {
 			csc.TokenRefresh()
 			err = c.run(&csc, cmd)
 		}
-		fmt.Print("\033[38;5;172m")
+		if operatingSystem != "windows" {
+			fmt.Print("\033[38;5;172m")
+		}
 		if err != nil {
 			fmt.Println(err)
 		}
