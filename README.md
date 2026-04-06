@@ -12,7 +12,7 @@
 This is a Commandline Client for the social network platform [Cyberspace](https://cyberspace.online/). It is currently in an alpha state.
 
 At present, this client has solid basic functions and presentation, but lacks the full functionality of the website version.
-You can check your feed and notifications, write posts and replies as well as write, edit and publish notes. 
+You can browse your feed and notifications, write posts and replies as well as write, edit and publish notes. 
 
 Please note: You need to have API access permissions enabled on your account to use this client. Just DM/C-Mail @genghis_khan. The limitation is to protect the server from uncought security flaws or potential for excessive requests.
 
@@ -57,6 +57,7 @@ Use the optional argument 'new' to load posts made since you started the client 
 - `publish <note_id>`: Posts a note to the feed, making it visible to other users. 
 - `edit config`: This lets you edit the client's config file. If you set 'stay logged in' to true, the client will save your refresh token and you will remain logged in across sessions. The config file should be in your .config/ or Library/Application Support/ directories, depending on whether you use linux or apple.
 - `bookmark <target_id`: Bookmarks the post or reply whose id was given as an argument.
+- `delete <target_id>`: This command deletes replies, posts or notes. You will be asked to confirm intent to delete. Currently, bookmarks cannot be deleted within the client.
 - `help`: Prints instructions to the console.
 - `exit`: exit
 
@@ -64,7 +65,8 @@ Use the optional argument 'new' to load posts made since you started the client 
 
 ### Limitations
 
-The client doesn't work on Windows, because it uses traits of the Linux terminal to format the output & edit documents. If you run Windows, there are two ways of quickly getting around that: Install [WSL](https://learn.microsoft.com/en-us/windows/wsl/install), an official Linux subsystem for Windows, or use a different client. From conversation with the dev, I know that cyberspace user @Ragnar's TUI client works just fine on windows due to having a different technological foundation. You can find it [here](https://github.com/ArmadilloBrillo/cyber-tui).
+~~The client doesn't work on Windows, because it uses traits of the Linux terminal to format the output & edit documents.~~. The client partially works on windows. You can browse the feed with minimal visual artifacts, but it won't automatically format the color like on mac/linux, meaning you would have to set that manually in the terminal settings. You also won't be able to write posts until a future update. 
+ If you run Windows, I can quickly reccomend two ways of circumventing these limitations: Install [WSL](https://learn.microsoft.com/en-us/windows/wsl/install), an official Linux subsystem for Windows, or use a different client. From conversation with the dev, I know that cyberspace user @Ragnar's TUI client works just fine on windows due to having a different technological foundation. You can find it [here](https://github.com/ArmadilloBrillo/cyber-tui).
 
 The client doesn't properly support pure keyboard navigation, because many to most people will still need to use a mouse/trackpad to scroll up and down the terminal output history to browse e.g. 'view feed' output. Supposedly this can be circumvented with `Fn + ↑ / ↓` on mac and `Shift + PageUp / PageDown` on Windows/Linux, but if at all, that only works on some versions. Personally, I managed to scroll up and down in windows 10 Powershell via `Ctrl + ↑ / ↓`, but the same didn't work in WSL Ubuntu.
 

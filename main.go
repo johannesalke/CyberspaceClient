@@ -288,6 +288,7 @@ func handlerHelp(csc *client.APIClient, cmd command) error {
  - post <note_id>: Posts a note to the feed, making it visible to other users. 
  - edit config: This lets you edit the client's config file. If you set 'stay logged in' to true, the client will save your refresh token and you will remain logged in across sessions. The config file should be in your .config/ or Library/Application Support/ directories, depending on whether you use linux or apple.
  - bookmark <target_id: Bookmarks the post or reply whose id was given as an argument.
+ - delete <target_id>: This command deletes replies, posts or notes. You will be asked to confirm intent to delete. Currently, bookmarks cannot be deleted within the client.
  - help: you are >here<
  - exit: exit	
 
