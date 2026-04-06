@@ -57,7 +57,7 @@ func main() {
 	go func() {
 		<-ch
 		if operatingSystem != "windows" {
-		fmt.Print("\033[0m") // Reset on interrupt
+			fmt.Print("\033[0m") // Reset on interrupt
 		}
 		fmt.Print("\n")
 		os.Exit(0)
@@ -75,7 +75,8 @@ func main() {
 	defer fmt.Print("\033[0m")
 	//fmt.Print("\172[0m") fmt.Print("\033[38;5;203m")
 	if operatingSystem != "windows" {
-	fmt.Print("\033[38;5;172m")}
+		fmt.Print("\033[38;5;172m")
+	}
 
 	var csc = client.InitAPIClient()
 	fmt.Print("You are now con-nec-ted\n")
@@ -136,8 +137,8 @@ func main() {
 			err = c.run(&csc, cmd)
 		}
 		if operatingSystem != "windows" {
-		fmt.Print("\033[38;5;172m")
-		if operatingSystem != "windows" {
+			fmt.Print("\033[38;5;172m")
+		}
 		if err != nil {
 			fmt.Println(err)
 		}
