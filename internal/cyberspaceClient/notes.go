@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"time"
 )
 
@@ -61,7 +62,6 @@ func (c *APIClient) GetNotes(limit int, cursor string) (posts []Note, newCursor 
 }
 
 func (c *APIClient) GetNoteById(note_id string) (Note, error) {
-
 	req, err := makeRequest("GET", "https://api.cyberspace.online/v1/notes/"+note_id, c.Tokens, nil)
 	if err != nil {
 		return Note{}, fmt.Errorf("Error forming request: %s", err)
@@ -144,6 +144,14 @@ func (c *APIClient) UpdateNote(noteInput CreateNoteInput, noteID string) (Note, 
 	res, err := c.sendRequest(req)
 	if err != nil {
 		return Note{}, fmt.Errorf("Error sending post request:%s", err)
+	}
+	if res.StatusCode != http.StatusOK && res.StatusCode != 201 {
+		fmt.Print(res.StatusCode)
+		var errResp ErrorResponse
+		decoder := json.NewDecoder(res.Body)
+		err = decoder.Decode(&errResp)
+
+		fmt.Print(errResp)
 	}
 
 	var noteConfirm struct {

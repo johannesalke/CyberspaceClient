@@ -51,6 +51,7 @@ func WriteContent() string {
 	if err != nil {
 		panic(err)
 	}
+	tmpFile.Close()
 	defer os.Remove(tmpFile.Name())
 
 	editor := os.Getenv("EDITOR")
@@ -108,12 +109,22 @@ func EditNote(note Note) (CreateNoteInput, error) {
 	if err != nil {
 		panic(err)
 	}
-	defer os.Remove(tmpFile.Name())
-	tmpFile.WriteString(note.Content)
 
+	defer os.Remove(tmpFile.Name())
+	_, err = tmpFile.WriteString(note.Content)
+	if err != nil {
+		return CreateNoteInput{}, err
+	}
+	if err := tmpFile.Sync(); err != nil {
+		return CreateNoteInput{}, err
+	}
+	tmpFile.Close()
 	editor := os.Getenv("EDITOR")
 	if editor == "" {
 		editor = "nano" // fallback
+	}
+	if runtime.GOOS == "windows" {
+		editor = "notepad"
 	}
 
 	cmd := exec.Command(editor, tmpFile.Name())

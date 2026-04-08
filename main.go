@@ -642,16 +642,19 @@ func handlerEditNote(csc *client.APIClient, cmd command) error {
 	note_id := cmd.Args[1]
 
 	fullNoteID, err := getFullID(note_id)
-	Note, err := csc.GetNoteById(fullNoteID)
+	//Note, err := csc.GetNoteById(fullNoteID)  //Why do that if the version in cache works just as well?
+	note := csc.NoteCache[fullNoteID]
 	if err != nil {
 		return fmt.Errorf("Error: %s ", err)
 
 	}
-	newNoteInput, err := client.EditNote(Note)
+
+	newNoteInput, err := client.EditNote(note)
 	if err != nil {
 		return fmt.Errorf("Error: %s ", err)
 
 	}
+	//fmt.Print(newNoteInput)
 	newNote, err := csc.UpdateNote(newNoteInput, fullNoteID)
 	if err != nil {
 		return fmt.Errorf("Error: %s ", err)
