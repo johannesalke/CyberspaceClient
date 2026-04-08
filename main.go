@@ -654,7 +654,7 @@ func handlerEditNote(csc *client.APIClient, cmd command) error {
 		return fmt.Errorf("Error: %s ", err)
 
 	}
-	fmt.Print(newNoteInput)
+	//fmt.Print(newNoteInput)
 	newNote, err := csc.UpdateNote(newNoteInput, fullNoteID)
 	if err != nil {
 		return fmt.Errorf("Error: %s ", err)

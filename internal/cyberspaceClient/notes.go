@@ -145,11 +145,13 @@ func (c *APIClient) UpdateNote(noteInput CreateNoteInput, noteID string) (Note, 
 	if err != nil {
 		return Note{}, fmt.Errorf("Error sending post request:%s", err)
 	}
-	if res.StatusCode != http.StatusOK {
+	if res.StatusCode != http.StatusOK && res.StatusCode != 201 {
 		fmt.Print(res.StatusCode)
-		var buf []byte
-		res.Body.Read(buf)
-		fmt.Print(buf)
+		var errResp ErrorResponse
+		decoder := json.NewDecoder(res.Body)
+		err = decoder.Decode(&errResp)
+
+		fmt.Print(errResp)
 	}
 
 	var noteConfirm struct {
