@@ -51,6 +51,7 @@ func WriteContent() string {
 	if err != nil {
 		panic(err)
 	}
+	tmpFile.Close()
 	defer os.Remove(tmpFile.Name())
 
 	editor := os.Getenv("EDITOR")
