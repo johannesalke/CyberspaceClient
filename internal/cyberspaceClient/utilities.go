@@ -109,10 +109,9 @@ func EditNote(note Note) (CreateNoteInput, error) {
 	if err != nil {
 		panic(err)
 	}
-
+	tmpFile.Close()
 	defer os.Remove(tmpFile.Name())
 	tmpFile.WriteString(note.Content)
-	tmpFile.Close()
 
 	editor := os.Getenv("EDITOR")
 	if editor == "" {
