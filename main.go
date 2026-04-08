@@ -175,7 +175,7 @@ func (c *commands) register(name string, f func(*client.APIClient, command) erro
 
 func handlerView(csc *client.APIClient, cmd command) error { // Redirects to handlers: viewFeed, viewPost, viewNotes, view Notifications, ...
 	if len(cmd.Args) == 0 {
-		renderPrint("The 'view' command requires an argument. Valid arguments: feed, post <id>, notifications, notes.\n")
+		renderPrint("The 'view' command requires at least one specifying argument. Valid arguments: feed, post <id>, notifications, notes, bookmarks, bookmark <id>, profile <name>.\n")
 		return nil
 	}
 
@@ -190,6 +190,8 @@ func handlerView(csc *client.APIClient, cmd command) error { // Redirects to han
 		return handlerViewNotes(csc, cmd)
 	case "bookmarks":
 		return handlerViewBookmarks(csc, cmd)
+	case "bookmark":
+		return handlerViewBookmark(csc, cmd)
 	case "profile":
 		return handlerViewProfile(csc, cmd)
 	case "user":
@@ -479,22 +481,61 @@ func handlerViewBookmarks(csc *client.APIClient, cmd command) error {
 	}
 
 	for _, bookmark := range bookmarks {
-		//bookmarkId, _ := getSimpleID(bookmark.BookmarkID)
+
+		bookmarkId, _ := getSimpleID(bookmark.BookmarkID)
+
 		if bookmark.Type == "post" {
 			if post, ok := csc.PostCache[bookmark.PostID]; ok {
-				renderPost(post, true)
+				renderBookmarkPost(post, bookmarkId)
 			} else {
 				post, err := csc.GetPostById(bookmark.PostID)
 				if err != nil {
 					fmt.Print("Error while trying to retrieve bookmark post by id: ", err)
 				}
-				renderPost(post, true)
+				renderBookmarkPost(post, bookmarkId)
 			}
+
+		} else if bookmark.Type == "reply" {
+
+			if reply, ok := csc.ReplyCache[bookmark.ReplyID]; ok {
+				renderBookmarkReply(reply, bookmarkId)
+			} else {
+				reply, err := csc.GetReplyById(bookmark.ReplyID)
+				if err != nil {
+					fmt.Print("Error while trying to retrieve bookmark reply by id: ", err)
+				}
+				renderBookmarkReply(reply, bookmarkId)
+			}
+
 		}
 	}
 	return nil
 
-} // Limited function due to inability to target specific replies for retrieval.
+} // Complete ~
+
+func handlerViewBookmark(csc *client.APIClient, cmd command) error {
+	if len(cmd.Args) != 2 {
+		return fmt.Errorf("This command requires two arguments: the 'bookmark' specifier and the id of the bookmark to view")
+	}
+
+	bookmarkId, err := getFullID(cmd.Args[1])
+	if err != nil {
+		return err
+	}
+	bookmark := csc.BookmarkCache[bookmarkId]
+
+	if bookmark.Type == "post" {
+		simpleID, _ := getSimpleID(bookmark.PostID)
+		handlerViewPost(csc, command{Name: "view", Args: []string{"post", strconv.Itoa(simpleID)}})
+
+	} else if bookmark.Type == "reply" {
+		reply := csc.ReplyCache[bookmark.ReplyID]
+		simpleID, _ := getSimpleID(reply.PostID)
+		handlerViewPost(csc, command{Name: "view", Args: []string{"post", strconv.Itoa(simpleID)}})
+
+	}
+	return nil
+}
 
 func handlerViewProfile(csc *client.APIClient, cmd command) error {
 	if len(cmd.Args) != 2 {
@@ -525,7 +566,7 @@ func handlerViewProfile(csc *client.APIClient, cmd command) error {
 	}
 
 	return nil
-} // Empty
+} // Basic
 
 ///////////////| Writing Handlers |////////////////////////
 

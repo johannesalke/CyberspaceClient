@@ -76,6 +76,28 @@ func (c *APIClient) GetReplies(postID string, limit int, cursor string) (replies
 
 }
 
+func (c *APIClient) GetReplyById(reply_id string) (Reply, error) {
+
+	req, err := makeRequest("GET", "https://api.cyberspace.online/v1/replies/"+reply_id, c.Tokens, nil)
+	if err != nil {
+		return Reply{}, fmt.Errorf("Error forming request: %s", err)
+	}
+
+	res, err := c.sendRequest(req)
+	if err != nil {
+		return Reply{}, fmt.Errorf("Error requesting post by ID: %s", err)
+	}
+	var oneReply oneReplyResponse
+	decoder := json.NewDecoder(res.Body)
+	err = decoder.Decode(&oneReply)
+	if err != nil {
+		panic(err)
+	}
+	c.ReplyCache[oneReply.Data.ReplyID] = oneReply.Data
+	//fmt.Print(postConfirm)
+	return oneReply.Data, nil
+}
+
 func (c *APIClient) CreateReply(replyInput CreateReplyInput) (Reply, error) {
 
 	writeInCLI := replyInput.Content == "" //Check if the contents of the post have been handed in via argument. If not, use terminal text editor to write post.

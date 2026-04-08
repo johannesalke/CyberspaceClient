@@ -200,6 +200,83 @@ func renderNotification(csc *client.APIClient, n client.Notification) {
 	fmt.Print(thinBox.Render(notification_string) + "\n")
 }
 
+func renderBookmarkPost(post client.Post, bookmark_id int) {
+
+	replies := ""
+	if post.RepliesCount == 1 {
+		replies = " | 1 reply"
+	} else if post.RepliesCount >= 2 {
+		replies = fmt.Sprintf("| %d replies", post.RepliesCount)
+	}
+	saves := ""
+	if post.BookmarksCount == 1 {
+		saves = " | 1 save"
+	} else if post.BookmarksCount >= 1 {
+		saves = fmt.Sprintf("| %d saves", post.BookmarksCount)
+	}
+	timeSince := humanize.RelTime(time.Now(), post.CreatedAt, "in the future", "ago")
+
+	topline, _ := renderer.Render(fmt.Sprintln("@"+post.AuthorUsername, saves, replies, "|", timeSince, " | Id: ", bookmark_id))
+
+	seperator, err := renderer.Render(strings.Repeat("─", 80))
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	renderedMD, err := renderer.Render(post.Content)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	if len(post.Topics) != 0 { //This block occurs if a post has topic tags. In that case, another dividing line is added and the topics are displayed below it.
+
+		topics, err := renderer.Render("Topics: " + strings.Join(post.Topics, ", "))
+		if err != nil {
+			fmt.Println(err)
+		}
+		err = RenderBox(topline, seperator, renderedMD, seperator, topics)
+		if err != nil {
+			fmt.Println(err)
+		}
+	} else { // Otherwise, just render normally.
+		err = RenderBox(topline, seperator, renderedMD)
+		if err != nil {
+			fmt.Println(err)
+		}
+	}
+
+}
+
+func renderBookmarkReply(reply client.Reply, bookmark_id int) {
+	responseTarget := "" //reply.ParentPostAuthor
+	if reply.ParentReplyAuthor != "" {
+		responseTarget = " | Responding to @" + reply.ParentReplyAuthor
+	}
+	saves := ""
+	if reply.SavesCount == 1 {
+		saves = " | 1 save"
+	} else if reply.SavesCount >= 1 {
+		saves = fmt.Sprintf("| %d saves", reply.SavesCount)
+	}
+	timeSince := humanize.RelTime(time.Now(), reply.CreatedAt, "in the future", "ago")
+
+	topline, _ := renderer.Render(fmt.Sprintln("@"+reply.AuthorUsername, responseTarget, saves, "|", timeSince, " | Id: ", bookmark_id))
+
+	seperator, err := renderer.Render(strings.Repeat("─", 80))
+	if err != nil {
+		fmt.Println(err)
+	}
+	renderedMD, err := renderer.Render(reply.Content)
+	if err != nil {
+		fmt.Println(err)
+	}
+	err = RenderBox(topline, seperator, renderedMD)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+}
+
 func renderText(str string) string {
 	res, _ := renderer.Render(str)
 	return res
