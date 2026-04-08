@@ -104,10 +104,14 @@ func (c *APIClient) UpdateConfig() (config Config) {
 	if err != nil {
 		fmt.Printf("Error writing to temp: %s", err)
 	}
+	tmpFile.Close()
 
 	editor := os.Getenv("EDITOR")
 	if editor == "" {
 		editor = "nano" // fallback
+	}
+	if runtime.GOOS == "windows" {
+		editor = "notepad"
 	}
 
 	cmd := exec.Command(editor, tmpFile.Name())
