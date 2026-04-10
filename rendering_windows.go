@@ -39,6 +39,7 @@ var (
 )
 
 var renderer, err = glamour.NewTermRenderer(
+	glamour.WithStylePath("style_windows.json"),
 	glamour.WithWordWrap(80))
 
 func RenderBox(elements ...string) error {

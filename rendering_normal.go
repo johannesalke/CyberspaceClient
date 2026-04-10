@@ -40,7 +40,7 @@ var (
 		Padding(0, 2, 0, 2)
 )
 
-var renderer, err = glamour.NewTermRenderer(
+var renderer, _ = glamour.NewTermRenderer(
 	glamour.WithStylePath("style.json"),
 	glamour.WithWordWrap(80))
 
