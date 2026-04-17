@@ -46,7 +46,7 @@ Client commands consist of a verb and a noun.
 - `view feed (optional_arg)`: Load 10 posts from the feed, starting at the newest. Every time the command is used, 10 more are loaded starting from where the previous iteration stopped. In the feed, posts are truncated at 1000 characters. To see the whole post, use the 'view post' command. 
 Use the optional argument 'new' to load posts made since you started the client without losing the marker of the basic command. Use 'reset' to start over entirely. (Sometimes it may show less than 10 because NSFW posts are currently filtered by default. In the future, this will be handled based on user settings.)
 - `view post <post_id>`: This command shows the post specified by the id argument, plus the first 20 comments.
-- `view notifications (optional_arg)`: Load 10 notifications. If the notification is for a post or reply, you can use the shown id to open that post. Supports the same optional arguments as 'view feed'
+- `view notifications (optional_arg)`: Load 15 notifications. If the notification is for a post or reply, you can use the shown id to open that post. Supports the same optional arguments as 'view feed'
 - `view notes`: Loads 10 notes from your journal.
 - `view bookmarks`: Load 10 bookmarks. Due to current API limitations, only bookmarked posts can be displayed, but not bookmarked replies. 
 - `view profile <username>`: Displays a simplified version of that users profile, as well as their pinned post if they have one. Use 'me' as the username to see your own profile.

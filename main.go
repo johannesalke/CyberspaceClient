@@ -197,7 +197,7 @@ func handlerView(csc *client.APIClient, cmd command) error { // Redirects to han
 	case "user":
 		return handlerViewProfile(csc, cmd)
 	default:
-		return fmt.Errorf("Unknown argument. Valid arguments for view: feed, post <id>, notifications, notes.\n")
+		return fmt.Errorf("Unknown argument. Valid arguments for view: feed, post <id>, notifications, notes, bookmarks, bookmark <id>, profile <name>.\n")
 	}
 
 }
@@ -433,7 +433,7 @@ func handlerViewPost(csc *client.APIClient, cmd command) error {
 func handlerViewNotifications(csc *client.APIClient, cmd command) error {
 	if len(cmd.Args) == 2 && cmd.Args[1] == "new" { //Check for new notifs rather than going further down the feed
 		cursor_temp := csc.Cursors["notifications"]
-		notifications, _, err := csc.GetNotifications(10, "")
+		notifications, _, err := csc.GetNotifications(15, "")
 		if err != nil {
 			fmt.Printf("Error getting notifs: %s", err)
 		}
@@ -446,7 +446,7 @@ func handlerViewNotifications(csc *client.APIClient, cmd command) error {
 		csc.Cursors["notifications"] = ""
 	}
 
-	notifications, new_cursor, err := csc.GetNotifications(10, csc.Cursors["notifications"])
+	notifications, new_cursor, err := csc.GetNotifications(15, csc.Cursors["notifications"])
 	if err != nil {
 		fmt.Printf("Error getting notifs: %s", err)
 	}
@@ -662,7 +662,7 @@ func handlerEditNote(csc *client.APIClient, cmd command) error {
 	}
 
 	renderNote(newNote, true)
-	fmt.Print(newNote.NoteID, "\n")
+	//fmt.Print(newNote.NoteID, "\n")
 	return nil
 } //|Complete
 

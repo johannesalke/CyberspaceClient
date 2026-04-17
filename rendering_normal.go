@@ -198,8 +198,12 @@ func renderNotification(csc *client.APIClient, n client.Notification) {
 	if n.Type == "new_post_friend" || n.Type == "new_post_following" || n.Type == "reply" {
 		id = fmt.Sprintln("| Id: ", simpleID)
 	}
+	var unread = ""
+	if !n.Read {
+		unread = "| [unread]"
+	}
 
-	notification_string := fmt.Sprintf("User: %s | Type: %s | %s %s", n.ActorUsername, n.Type, timeSince, id)
+	notification_string := fmt.Sprintf("User: %s | Type: %s | %s %s %s", n.ActorUsername, n.Type, timeSince, unread, id)
 	fmt.Print(thinBox.Render(notification_string) + "\n")
 }
 
