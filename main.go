@@ -43,16 +43,6 @@ func main() {
 	IDmap[0] = "existence"
 	reverseIDmap["nonexistence"] = 0
 
-	ch := make(chan os.Signal, 1)
-	signal.Notify(ch, os.Interrupt, syscall.SIGTERM)
-	go func() {
-		<-ch
-		if operatingSystem != "windows" {
-			fmt.Print("\033[0m") // Reset on interrupt
-		}
-		fmt.Print("\n")
-		os.Exit(0)
-	}()
 	fmt.Print(`
 	 ██████╗██╗   ██╗██████╗ ███████╗██████╗ ███████╗██████╗  █████╗  ██████╗███████╗
 	██╔════╝╚██╗ ██╔╝██╔══██╗██╔════╝██╔══██╗██╔════╝██╔══██╗██╔══██╗██╔════╝██╔════╝
@@ -74,7 +64,18 @@ func main() {
 	time.Sleep(500 * time.Millisecond)
 	//fmt.Print(csc)
 	csc.Config = client.GetConfig()
-	//fmt.Print(csc.Config)
+
+	ch := make(chan os.Signal, 1)
+	signal.Notify(ch, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		<-ch
+		if operatingSystem != "windows" {
+			fmt.Print("\033[0m") // Reset on interrupt
+		}
+		fmt.Print("\n")
+		os.Exit(0)
+		csc.SaveConfig(csc.Config)
+	}()
 
 	//cfg := Config{apiUrl: "https://api.cyberspace.online/v1"}
 	//client := http.NewClientHandler()
@@ -91,7 +92,9 @@ func main() {
 	time.Sleep(500 * time.Millisecond)
 	user, err := csc.GetMyUserProfile()
 	if err != nil {
-		fmt.Print(err)
+		fmt.Println(err)
+		fmt.Println()
+		os.Exit(1)
 	}
 	csc.Username = user.Username
 
@@ -107,6 +110,7 @@ func main() {
 	c.register("bookmark", handlerBookmark)
 	c.register("help", handlerHelp)
 	c.register("delete", handlerDelete)
+	c.register("logout", handlerLogout)
 	//c.register("config", handlerUpdateConfig)
 
 	scanner := bufio.NewScanner(os.Stdin)
@@ -120,6 +124,8 @@ func main() {
 		if len(arguments) == 0 {
 			continue
 		} else if arguments[0] == "exit" {
+			csc.SaveConfig(csc.Config)
+			fmt.Println("Exiting cyberspace...")
 			break
 		}
 		cmd := command{Name: arguments[0], Args: arguments[1:]}
@@ -281,7 +287,8 @@ func handlerHelp(csc *client.APIClient, cmd command) error {
  - bookmark <target_id: Bookmarks the post or reply whose id was given as an argument.
  - delete <target_id>: This command deletes replies, posts or notes. You will be asked to confirm intent to delete. Currently, bookmarks cannot be deleted within the client.
  - help: you are >here<
- - exit: exit	
+ - logout: Log out of your account and exit the client. You will need to enter your email and password again the next time.
+ - exit: exit
 
  `, "\n")
 	return nil
@@ -347,6 +354,17 @@ func handlerDelete(csc *client.APIClient, cmd command) error {
 		fmt.Print("successfully deleted bookmark\n")
 	} //Bookmarks can't be deleted because they are displayed with their respective post/reply ID, to facilitate users view-ing the post+replies if they wish to.
 
+	return nil
+}
+
+func handlerLogout(csc *client.APIClient, cmd command) error {
+	csc.Config.StoredValues.RefreshToken = ""
+	err := csc.SaveConfig(csc.Config)
+	if err != nil {
+		return err
+	}
+	fmt.Println("Logging out...")
+	os.Exit(0)
 	return nil
 }
 

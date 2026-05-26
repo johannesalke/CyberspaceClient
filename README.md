@@ -59,7 +59,8 @@ Use the optional argument 'new' to load posts made since you started the client 
 - `bookmark <target_id`: Bookmarks the post or reply whose id was given as an argument.
 - `delete <target_id>`: This command deletes replies, posts, notes or bookmarks. The type of the target doesn't need to be specified, if will be inferred from the id. You will be asked to confirm intent to delete. 
 - `help`: Prints instructions to the console.
-- `exit`: exit
+- `logout`: Log out of your account and exit the client. You will need to enter your email and password again the next time.
+- `exit`: Exit without logging out
 
 
 

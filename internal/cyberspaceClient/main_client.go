@@ -155,6 +155,29 @@ func (c *APIClient) UpdateConfig() (config Config) {
 
 }
 
+func (c *APIClient) SaveConfig(config Config) error {
+	cfgDir, err := GetConfigDir()
+	if err != nil {
+		return fmt.Errorf("Critical error: Couldn't retrieve config path. %s", err)
+	}
+	cfgPath := filepath.Join(cfgDir, "config.json")
+
+	if config.StayLoggedIn {
+		config.StoredValues.RefreshToken = c.Tokens.RefreshToken
+	}
+
+	file, err := json.MarshalIndent(config, "", "  ")
+	if err != nil {
+		return fmt.Errorf("Error unmarshalling config json: %s", err)
+	}
+
+	err = os.WriteFile(cfgPath, file, 0644)
+	if err != nil {
+		return fmt.Errorf("Error writing config: %s", err)
+	}
+	return nil
+}
+
 // //////| Config helper functions |///////////////////
 func readConfig(cfgPath string) (Config, error) {
 	file, err := os.ReadFile(cfgPath)
