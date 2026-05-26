@@ -81,6 +81,11 @@ func Login(url string) AuthTokens { //client http.Client,
 		fmt.Printf("Error decoding json: %s\n", err)
 		os.Exit(1)
 	}
+	if (authResp.Data == AuthTokens{}) || authResp.Data.RefreshToken == "" {
+		fmt.Println("Couldn't retrieve auth tokens. Exiting cyberspace...")
+		os.Exit(1)
+	}
+
 	return authResp.Data
 }
 
