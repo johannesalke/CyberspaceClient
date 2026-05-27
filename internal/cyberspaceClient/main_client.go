@@ -162,9 +162,9 @@ func (c *APIClient) SaveConfig(config Config) error {
 	}
 	cfgPath := filepath.Join(cfgDir, "config.json")
 
-	if config.StayLoggedIn {
+	/*if config.StayLoggedIn {
 		config.StoredValues.RefreshToken = c.Tokens.RefreshToken
-	}
+	}*/
 
 	file, err := json.MarshalIndent(config, "", "  ")
 	if err != nil {

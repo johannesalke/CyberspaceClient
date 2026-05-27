@@ -93,10 +93,17 @@ func main() {
 	user, err := csc.GetMyUserProfile()
 	if err != nil {
 		fmt.Println(err)
-		fmt.Println()
+
 		os.Exit(1)
 	}
 	csc.Username = user.Username
+
+	if csc.Username == "" {
+		fmt.Println("! It appears there was an error preventing the retrieval of user information.\n!",
+			"A possible cause is that your account hasn't been granted API access.\n!",
+			"Only supporters have API access enabled by default.")
+		os.Exit(1)
+	}
 
 	fmt.Printf("Welcome to Cyberspace, @%s\n", csc.Username)
 	time.Sleep(500 * time.Millisecond)
