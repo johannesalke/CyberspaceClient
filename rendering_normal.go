@@ -4,6 +4,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -11,6 +12,7 @@ import (
 	lipgloss "charm.land/lipgloss/v2"
 	humanize "github.com/dustin/go-humanize"
 	client "github.com/johannesalke/cyberspacecli/internal/cyberspaceClient"
+	"golang.org/x/term"
 )
 
 var (
@@ -38,13 +40,18 @@ var (
 		Border(lipgloss.RoundedBorder()).
 		MarginLeft(4).
 		Padding(0, 2, 0, 2)
+
+	boxes = []*lipgloss.Style{&basicBox, &boxTop, &boxSides, &boxBottom, &thinBox}
+
+	textWidth = 180
 )
 
 var renderer, _ = glamour.NewTermRenderer(
 	glamour.WithStylePath("style.json"),
-	glamour.WithWordWrap(80))
+	glamour.WithWordWrap(textWidth))
 
 func RenderBox(elements ...string) error {
+
 	N := len(elements)
 
 	result := boxTop.Render(strings.TrimRight(elements[0], "\n")) + "\n"
@@ -59,7 +66,7 @@ func RenderBox(elements ...string) error {
 }
 
 func renderPost(post client.Post, fullPost bool) { //Full post should be set to false in the feed to truncate posts in the feed. THis is not implemented yet!
-
+	resizeDisplay()
 	simpleID, _ := getSimpleID(post.PostID)
 	replies := ""
 	if post.RepliesCount == 1 {
@@ -77,13 +84,13 @@ func renderPost(post client.Post, fullPost bool) { //Full post should be set to 
 
 	topline, _ := renderer.Render(fmt.Sprintln("@"+post.AuthorUsername, saves, replies, "|", timeSince, " | Id: ", simpleID))
 
-	seperator, err := renderer.Render(strings.Repeat("─", 80))
+	seperator, err := renderer.Render(strings.Repeat("─", textWidth))
 	if err != nil {
 		fmt.Println(err)
 	}
 	var renderedMD string
 
-	if fullPost == false && len(post.Content) > 500 {
+	if fullPost == false && len(post.Content) > 1000 {
 
 		//truncatedPost, _ := renderer.Render("...view post to continue")
 		renderedMD, err = renderer.Render(fmt.Sprintf("%.1000s   %s", post.Content, "...*view post to continue*"))
@@ -118,6 +125,7 @@ func renderPost(post client.Post, fullPost bool) { //Full post should be set to 
 }
 
 func renderReply(reply client.Reply) {
+	resizeDisplay()
 	simpleID, _ := getSimpleID(reply.ReplyID)
 	responseTarget := "" //reply.ParentPostAuthor
 	if reply.ParentReplyAuthor != "" {
@@ -133,7 +141,7 @@ func renderReply(reply client.Reply) {
 
 	topline, _ := renderer.Render(fmt.Sprintln("@"+reply.AuthorUsername, responseTarget, saves, "|", timeSince, " | Id: ", simpleID))
 
-	seperator, err := renderer.Render(strings.Repeat("─", 80))
+	seperator, err := renderer.Render(strings.Repeat("─", textWidth))
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -159,6 +167,8 @@ type Note struct {
 }
 
 func renderNote(note client.Note, fullNote bool) { //Full note should be set to false in the feed to truncate posts in the feed. THis is not implemented yet!
+	resizeDisplay()
+
 	simpleID, _ := getSimpleID(note.NoteID)
 	topline, _ := renderer.Render(fmt.Sprintln("Id: ", simpleID))
 
@@ -191,6 +201,7 @@ func renderNote(note client.Note, fullNote bool) { //Full note should be set to 
 }
 
 func renderNotification(csc *client.APIClient, n client.Notification) {
+	resizeDisplay()
 	simpleID, _ := getSimpleID(n.TargetID)
 
 	timeSince := humanize.RelTime(time.Now(), n.CreatedAt, "in the future", "ago")
@@ -208,6 +219,7 @@ func renderNotification(csc *client.APIClient, n client.Notification) {
 }
 
 func renderBookmarkPost(post client.Post, bookmark_id int) {
+	resizeDisplay()
 
 	replies := ""
 	if post.RepliesCount == 1 {
@@ -225,7 +237,7 @@ func renderBookmarkPost(post client.Post, bookmark_id int) {
 
 	topline, _ := renderer.Render(fmt.Sprintln("@"+post.AuthorUsername, saves, replies, "|", timeSince, " | Id: ", bookmark_id))
 
-	seperator, err := renderer.Render(strings.Repeat("─", 80))
+	seperator, err := renderer.Render(strings.Repeat("─", textWidth))
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -269,7 +281,7 @@ func renderBookmarkReply(reply client.Reply, bookmark_id int) {
 
 	topline, _ := renderer.Render(fmt.Sprintln("@"+reply.AuthorUsername, responseTarget, saves, "|", timeSince, " | Id: ", bookmark_id))
 
-	seperator, err := renderer.Render(strings.Repeat("─", 80))
+	seperator, err := renderer.Render(strings.Repeat("─", textWidth))
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -282,11 +294,6 @@ func renderBookmarkReply(reply client.Reply, bookmark_id int) {
 		fmt.Println(err)
 	}
 
-}
-
-func renderText(str string) string {
-	res, _ := renderer.Render(str)
-	return res
 }
 
 func renderPrint(str string) {
@@ -307,7 +314,7 @@ func renderProfile(user client.User) {
 
 	topline, _ := renderer.Render(fmt.Sprintln("@"+user.Username, supporter, guild, "| Joined "+timeSince))
 
-	seperator, err := renderer.Render(strings.Repeat("─", 80))
+	seperator, err := renderer.Render(strings.Repeat("─", textWidth))
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -331,5 +338,33 @@ func renderProfile(user client.User) {
 			fmt.Println(err)
 		}
 	}
+
+}
+
+/////////////////////| Customizing display-width logic |////////////////
+
+func resizeDisplay() {
+	width, _, err := term.GetSize(int(os.Stdout.Fd()))
+	if err != nil {
+		fmt.Printf("Error getting terminal dimensions: %s", err)
+	}
+	for _, style := range boxes {
+		var newStyle = style.Width(width - 8)
+		*style = newStyle
+
+	}
+	//var newRenderer *glamour.TermRenderer
+
+	newRenderer, err := glamour.NewTermRenderer(
+		glamour.WithStylePath("style.json"),
+		glamour.WithWordWrap(width-14))
+	if err != nil {
+		fmt.Print(err)
+	}
+	renderer = newRenderer
+
+	textWidth = width - 14
+
+	//return newRenderer
 
 }
