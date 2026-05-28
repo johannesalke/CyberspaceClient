@@ -12,7 +12,7 @@ import (
 	"syscall"
 
 	"fmt"
-	"net/http"
+	//"net/http"
 	"os"
 	"runtime"
 	//"os/exec"
@@ -24,14 +24,6 @@ import (
 
 	client "github.com/johannesalke/cyberspacecli/internal/cyberspaceClient"
 )
-
-type Config struct {
-	apiUrl   string
-	cache    map[string]any
-	tokens   client.AuthTokens
-	username string
-	client   http.Client
-}
 
 var IDmap = make(map[int]string)
 var reverseIDmap = make(map[string]int)
@@ -396,7 +388,7 @@ func handlerViewFeed(csc *client.APIClient, cmd command) error {
 				if post.IsNSFW == true {
 					continue
 				}
-				renderPost(post, false)
+				renderPost(post, false, csc.Config.Settings.AutoResize)
 				_, old_posts = getSimpleID(post.PostID) //Checks if this iteration crossed into new posts.
 			}
 		}
@@ -414,7 +406,7 @@ func handlerViewFeed(csc *client.APIClient, cmd command) error {
 		if post.IsNSFW == true {
 			continue
 		}
-		renderPost(post, false)
+		renderPost(post, false, csc.Config.Settings.AutoResize)
 
 	}
 	return nil
@@ -432,7 +424,7 @@ func handlerViewPost(csc *client.APIClient, cmd command) error {
 	if err != nil {
 		fmt.Print(err)
 	}
-	renderPost(post, true)
+	renderPost(post, true, csc.Config.Settings.AutoResize)
 	replies, _, err := csc.GetReplies(fullPostID, 20, "")
 	if err != nil {
 		fmt.Print(err)
@@ -440,7 +432,7 @@ func handlerViewPost(csc *client.APIClient, cmd command) error {
 
 	for _, reply := range replies {
 
-		renderReply(reply)
+		renderReply(reply, csc.Config.Settings.AutoResize)
 
 	}
 
@@ -458,7 +450,7 @@ func handlerViewNotifications(csc *client.APIClient, cmd command) error {
 			fmt.Printf("Error getting notifs: %s", err)
 		}
 		for _, notification := range notifications {
-			renderNotification(csc, notification)
+			renderNotification(csc, notification, csc.Config.Settings.AutoResize)
 		}
 		csc.Cursors["notifications"] = cursor_temp
 		return nil
@@ -472,7 +464,7 @@ func handlerViewNotifications(csc *client.APIClient, cmd command) error {
 	}
 	csc.Cursors["notifications"] = new_cursor
 	for _, notification := range notifications {
-		renderNotification(csc, notification)
+		renderNotification(csc, notification, csc.Config.Settings.AutoResize)
 	}
 	return nil
 } // Complete ~
@@ -487,7 +479,7 @@ func handlerViewNotes(csc *client.APIClient, cmd command) error {
 		if slices.Contains(already_displayed_notes, note.NoteID) {
 			continue //Skip notes that already had a newer version displayed
 		}
-		renderNote(note, true)
+		renderNote(note, true, csc.Config.Settings.AutoResize)
 		already_displayed_notes = append(already_displayed_notes, note.NoteID)
 
 	}
@@ -506,25 +498,25 @@ func handlerViewBookmarks(csc *client.APIClient, cmd command) error {
 
 		if bookmark.Type == "post" {
 			if post, ok := csc.PostCache[bookmark.PostID]; ok {
-				renderBookmarkPost(post, bookmarkId)
+				renderBookmarkPost(post, bookmarkId, csc.Config.Settings.AutoResize)
 			} else {
 				post, err := csc.GetPostById(bookmark.PostID)
 				if err != nil {
 					fmt.Print("Error while trying to retrieve bookmark post by id: ", err)
 				}
-				renderBookmarkPost(post, bookmarkId)
+				renderBookmarkPost(post, bookmarkId, csc.Config.Settings.AutoResize)
 			}
 
 		} else if bookmark.Type == "reply" {
 
 			if reply, ok := csc.ReplyCache[bookmark.ReplyID]; ok {
-				renderBookmarkReply(reply, bookmarkId)
+				renderBookmarkReply(reply, bookmarkId, csc.Config.Settings.AutoResize)
 			} else {
 				reply, err := csc.GetReplyById(bookmark.ReplyID)
 				if err != nil {
 					fmt.Print("Error while trying to retrieve bookmark reply by id: ", err)
 				}
-				renderBookmarkReply(reply, bookmarkId)
+				renderBookmarkReply(reply, bookmarkId, csc.Config.Settings.AutoResize)
 			}
 
 		}
@@ -576,13 +568,13 @@ func handlerViewProfile(csc *client.APIClient, cmd command) error {
 	if err != nil {
 		return err
 	}
-	renderProfile(user)
+	renderProfile(user, csc.Config.Settings.AutoResize)
 	if user.PinnedPostID != "" {
 		pinnedPost, err := csc.GetPostById(user.PinnedPostID)
 		if err != nil {
 			return err
 		}
-		renderPost(pinnedPost, true)
+		renderPost(pinnedPost, true, csc.Config.Settings.AutoResize)
 	}
 
 	return nil
@@ -598,7 +590,7 @@ func handlerWritePost(csc *client.APIClient, cmd command) error {
 	if post.Content == "" { //If the user either wrote nothing in the document, or didn't confirm intention to post.
 		return nil
 	}
-	renderPost(post, true)
+	renderPost(post, true, csc.Config.Settings.AutoResize)
 	return nil
 } //|Complete
 
@@ -633,7 +625,7 @@ func handlerWriteReply(csc *client.APIClient, cmd command) error {
 	if reply.Content == "" { //If the user either wrote nothing in the document, or didn't confirm intention to post.
 		return nil
 	}
-	renderReply(reply)
+	renderReply(reply, csc.Config.Settings.AutoResize)
 	return nil
 
 }
@@ -643,7 +635,7 @@ func handlerWriteNote(csc *client.APIClient, cmd command) error {
 	if err != nil {
 		fmt.Print(err)
 	}
-	renderNote(note, true)
+	renderNote(note, true, csc.Config.Settings.AutoResize)
 	return nil
 } //|Complete
 
@@ -651,7 +643,7 @@ func handlerWriteNote(csc *client.APIClient, cmd command) error {
 
 func handlerEditConfig(csc *client.APIClient, cmd command) error {
 
-	csc.UpdateConfig()
+	csc.Config = csc.UpdateConfig()
 	return nil
 } //|Complete
 
@@ -681,7 +673,7 @@ func handlerEditNote(csc *client.APIClient, cmd command) error {
 
 	}
 
-	renderNote(newNote, true)
+	renderNote(newNote, true, csc.Config.Settings.AutoResize)
 
 	return nil
 } //|Complete
@@ -705,7 +697,7 @@ func handlerPublishNote(csc *client.APIClient, cmd command) error {
 	if err != nil {
 		return fmt.Errorf("Error publishing note: %s", err)
 	}
-	renderPost(post, true)
+	renderPost(post, true, csc.Config.Settings.AutoResize)
 	return nil
 }
 
