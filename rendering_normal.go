@@ -43,7 +43,7 @@ var (
 
 	boxes = []*lipgloss.Style{&basicBox, &boxTop, &boxSides, &boxBottom, &thinBox}
 
-	textWidth = 180
+	textWidth = 80
 )
 
 var renderer, _ = glamour.NewTermRenderer(
@@ -65,8 +65,11 @@ func RenderBox(elements ...string) error {
 	return nil
 }
 
-func renderPost(post client.Post, fullPost bool) { //Full post should be set to false in the feed to truncate posts in the feed. THis is not implemented yet!
-	resizeDisplay()
+func renderPost(post client.Post, fullPost bool, resize bool) { //Full post should be set to false in the feed to truncate posts in the feed. THis is not implemented yet!
+	if resize {
+		resizeDisplay()
+	}
+
 	simpleID, _ := getSimpleID(post.PostID)
 	replies := ""
 	if post.RepliesCount == 1 {
@@ -124,8 +127,10 @@ func renderPost(post client.Post, fullPost bool) { //Full post should be set to 
 
 }
 
-func renderReply(reply client.Reply) {
-	resizeDisplay()
+func renderReply(reply client.Reply, resize bool) {
+	if resize {
+		resizeDisplay()
+	}
 	simpleID, _ := getSimpleID(reply.ReplyID)
 	responseTarget := "" //reply.ParentPostAuthor
 	if reply.ParentReplyAuthor != "" {
@@ -166,13 +171,15 @@ type Note struct {
 	CreatedAt      time.Time `json:"createdAt"`
 }
 
-func renderNote(note client.Note, fullNote bool) { //Full note should be set to false in the feed to truncate posts in the feed. THis is not implemented yet!
-	resizeDisplay()
+func renderNote(note client.Note, fullNote bool, resize bool) { //Full note should be set to false in the feed to truncate posts in the feed. THis is not implemented yet!
+	if resize {
+		resizeDisplay()
+	}
 
 	simpleID, _ := getSimpleID(note.NoteID)
 	topline, _ := renderer.Render(fmt.Sprintln("Id: ", simpleID))
 
-	seperator, err := renderer.Render(strings.Repeat("─", 80))
+	seperator, err := renderer.Render(strings.Repeat("─", textWidth))
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -200,8 +207,10 @@ func renderNote(note client.Note, fullNote bool) { //Full note should be set to 
 
 }
 
-func renderNotification(csc *client.APIClient, n client.Notification) {
-	resizeDisplay()
+func renderNotification(csc *client.APIClient, n client.Notification, resize bool) {
+	if resize {
+		resizeDisplay()
+	}
 	simpleID, _ := getSimpleID(n.TargetID)
 
 	timeSince := humanize.RelTime(time.Now(), n.CreatedAt, "in the future", "ago")
@@ -218,8 +227,10 @@ func renderNotification(csc *client.APIClient, n client.Notification) {
 	fmt.Print(thinBox.Render(notification_string) + "\n")
 }
 
-func renderBookmarkPost(post client.Post, bookmark_id int) {
-	resizeDisplay()
+func renderBookmarkPost(post client.Post, bookmark_id int, resize bool) {
+	if resize {
+		resizeDisplay()
+	}
 
 	replies := ""
 	if post.RepliesCount == 1 {
@@ -266,7 +277,10 @@ func renderBookmarkPost(post client.Post, bookmark_id int) {
 
 }
 
-func renderBookmarkReply(reply client.Reply, bookmark_id int) {
+func renderBookmarkReply(reply client.Reply, bookmark_id int, resize bool) {
+	if resize {
+		resizeDisplay()
+	}
 	responseTarget := ""
 	if reply.ParentReplyAuthor != "" {
 		responseTarget = " | Responding to @" + reply.ParentReplyAuthor
@@ -300,8 +314,10 @@ func renderPrint(str string) {
 	fmt.Print(renderer.Render(str))
 }
 
-func renderProfile(user client.User) {
-
+func renderProfile(user client.User, resize bool) {
+	if resize {
+		resizeDisplay()
+	}
 	timeSince := humanize.Time(user.CreatedAt)
 	guild := ""
 	if user.GuildSlug != "" {

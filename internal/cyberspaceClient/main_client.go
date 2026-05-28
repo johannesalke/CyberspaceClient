@@ -47,10 +47,10 @@ type Config struct {
 	StayLoggedIn bool `json:"stay_logged_in"`
 
 	StoredValues ConfigStorage `json:"stored_values"`
+	Settings     ConfigSettings
 }
 
 type ConfigStorage struct {
-	Email        string `json:"email"`
 	RefreshToken string `json:"refresh_token"`
 }
 
@@ -59,6 +59,10 @@ type ErrorResponse struct {
 		Code    string `json:"code"`
 		Message string `json:"message"`
 	} `json:"error"`
+}
+
+type ConfigSettings struct {
+	AutoResize bool `json:"auto_resize"`
 }
 
 //Missing: Follows,
@@ -199,8 +203,11 @@ func InitConfig(cfgPath string) error {
 	config := Config{
 		StayLoggedIn: true,
 		StoredValues: ConfigStorage{
-			Email:        "",
+
 			RefreshToken: "",
+		},
+		Settings: ConfigSettings{
+			AutoResize: false,
 		},
 	}
 	return writeConfig(cfgPath, config)
