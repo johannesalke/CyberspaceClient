@@ -3,6 +3,7 @@ package client
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"time"
 )
 
@@ -56,6 +57,10 @@ func (c *APIClient) GetMyUserProfile() (User, error) {
 	if err != nil {
 		return User{}, fmt.Errorf("Error requesting post by ID: %s", err)
 	}
+	if res.StatusCode != http.StatusOK {
+		return User{}, fmt.Errorf("Error retrieving profile: %s", res.Status)
+	}
+
 	var userResponse GetUserResponse
 	decoder := json.NewDecoder(res.Body)
 	err = decoder.Decode(&userResponse)

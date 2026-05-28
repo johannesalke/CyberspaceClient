@@ -73,8 +73,10 @@ func main() {
 			fmt.Print("\033[0m") // Reset on interrupt
 		}
 		fmt.Print("\n")
-		os.Exit(0)
+
+		csc.Config.StoredValues.RefreshToken = csc.Tokens.RefreshToken
 		csc.SaveConfig(csc.Config)
+		os.Exit(0)
 	}()
 
 	//cfg := Config{apiUrl: "https://api.cyberspace.online/v1"}
@@ -88,18 +90,21 @@ func main() {
 
 	} else {
 		csc.Tokens = client.Login(csc.ApiUrl)
+
 	}
 	time.Sleep(500 * time.Millisecond)
 	user, err := csc.GetMyUserProfile()
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println(err, "\n!",
+			"A possible cause is that your account hasn't been granted API access.\n!",
+			"Only supporters have API access enabled by default.")
 
 		os.Exit(1)
 	}
 	csc.Username = user.Username
 
-	if csc.Username == "" {
-		fmt.Println("! It appears there was an error preventing the retrieval of user information.\n!",
+	if user.Username == "" {
+		fmt.Println("! It appears that an error has prevented the retrieval of user information.\n!",
 			"A possible cause is that your account hasn't been granted API access.\n!",
 			"Only supporters have API access enabled by default.")
 		os.Exit(1)
@@ -131,6 +136,7 @@ func main() {
 		if len(arguments) == 0 {
 			continue
 		} else if arguments[0] == "exit" {
+			csc.Config.StoredValues.RefreshToken = csc.Tokens.RefreshToken
 			csc.SaveConfig(csc.Config)
 			fmt.Println("Exiting cyberspace...")
 			break
