@@ -366,6 +366,13 @@ func resizeDisplay(resize bool) {
 			*style = newStyle
 
 		}
+		newRenderer, err := glamour.NewTermRenderer(
+			glamour.WithStylePath("style.json"),
+			glamour.WithWordWrap(80))
+		if err != nil {
+			fmt.Print(err)
+		}
+		renderer = newRenderer
 		return
 	}
 
