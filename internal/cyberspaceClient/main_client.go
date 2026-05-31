@@ -44,8 +44,6 @@ func InitAPIClient() APIClient {
 }
 
 type Config struct {
-	StayLoggedIn bool `json:"stay_logged_in"`
-
 	StoredValues ConfigStorage `json:"stored_values"`
 	Settings     ConfigSettings
 }
@@ -62,7 +60,8 @@ type ErrorResponse struct {
 }
 
 type ConfigSettings struct {
-	AutoResize bool `json:"auto_resize"`
+	AutoResize   bool `json:"auto_resize"`
+	StayLoggedIn bool `json:"stay_logged_in"`
 }
 
 //Missing: Follows,
@@ -137,7 +136,7 @@ func (c *APIClient) UpdateConfig() (config Config) {
 
 		fmt.Printf("Error unmarshalling config json: %s", err)
 	}
-	if config.StayLoggedIn == true {
+	if config.Settings.StayLoggedIn == true {
 		config.StoredValues.RefreshToken = c.Tokens.RefreshToken
 	}
 	file, err = json.MarshalIndent(config, "", "  ")
@@ -201,13 +200,14 @@ func readConfig(cfgPath string) (Config, error) {
 
 func InitConfig(cfgPath string) error {
 	config := Config{
-		StayLoggedIn: true,
+
 		StoredValues: ConfigStorage{
 
 			RefreshToken: "",
 		},
 		Settings: ConfigSettings{
-			AutoResize: false,
+			AutoResize:   false,
+			StayLoggedIn: true,
 		},
 	}
 	return writeConfig(cfgPath, config)
