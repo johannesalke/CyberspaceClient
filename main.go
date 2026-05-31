@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"maps"
+	"reflect"
 	"slices"
 	"strconv"
 	"time"
@@ -15,6 +16,7 @@ import (
 	//"net/http"
 	"os"
 	"runtime"
+
 	//"os/exec"
 	"strings"
 	//"time"
@@ -73,7 +75,7 @@ func main() {
 
 	//cfg := Config{apiUrl: "https://api.cyberspace.online/v1"}
 	//client := http.NewClientHandler()
-	if csc.Config.StayLoggedIn == true && csc.Config.StoredValues.RefreshToken != "" {
+	if csc.Config.Settings.StayLoggedIn == true && csc.Config.StoredValues.RefreshToken != "" {
 		csc.Tokens = client.AuthTokens{RefreshToken: "", IDToken: "", RTDBToken: ""}
 		csc.Tokens.RefreshToken = csc.Config.StoredValues.RefreshToken
 		//fmt.Print((csc.Tokens.RefreshToken), "\n")
@@ -236,6 +238,8 @@ func handlerEdit(csc *client.APIClient, cmd command) error {
 		return handlerEditNote(csc, cmd)
 	case "config":
 		return handlerEditConfig(csc, cmd)
+	case "settings":
+		return handlerEditSettings(csc, cmd)
 	default:
 		return fmt.Errorf("Unknown argument. Valid arguments for write: post, note.\n")
 
@@ -676,7 +680,88 @@ func handlerEditNote(csc *client.APIClient, cmd command) error {
 	renderNote(newNote, true, csc.Config.Settings.AutoResize)
 
 	return nil
+
 } //|Complete
+
+func handlerEditSettings(csc *client.APIClient, cmd command) error {
+	scanner := bufio.NewScanner(os.Stdin)
+
+	for true {
+		printCurrentSettings(csc.Config.Settings)
+
+		fmt.Print("> ")
+		scanner.Scan()
+		input := scanner.Text()
+		arguments := strings.Split(input, "=")
+		if arguments[0] == "exit" {
+			fmt.Println("Exiting settings...")
+			break
+		} else if len(arguments) == 0 {
+			continue
+		} else if len(arguments) != 2 {
+			fmt.Println("Error: Incorrect formatting.")
+			continue
+		}
+
+		err := setSetting(&csc.Config.Settings, arguments[0], arguments[1])
+		if err != nil {
+			fmt.Println(err)
+		}
+	}
+	return nil
+}
+
+func printCurrentSettings(settings client.ConfigSettings) {
+
+	v := reflect.ValueOf(settings)
+	t := v.Type()
+
+	fmt.Println("Your current settings are:")
+	for i := range v.NumField() {
+		fmt.Printf("- %s: %v\n", t.Field(i).Name, v.Field(i).Interface())
+	}
+	fmt.Println("\nTo change one of them, enter [settingname]=[new value], with no spaces in between. (Think environmental variables). The name must be properly capitalized.\nTo exit this menue, type 'exit'")
+}
+
+func setSetting(s interface{}, fieldName string, value string) error {
+	v := reflect.ValueOf(s).Elem()
+	field := v.FieldByName(fieldName)
+
+	if !field.IsValid() {
+		return fmt.Errorf("no such setting: %s", fieldName)
+	}
+	if !field.CanSet() {
+		return fmt.Errorf("setting cannot be set: %s\nPossible reasons include mistyping, wrong type, acts of god,...", fieldName)
+	}
+	switch field.Kind() {
+	case reflect.String:
+		field.SetString(value)
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		n, err := strconv.ParseInt(value, 10, 64)
+		if err != nil {
+			return fmt.Errorf("invalid integer: %s", value)
+		}
+		field.SetInt(n)
+	case reflect.Bool:
+		b, err := strconv.ParseBool(value) // accepts "true", "false", "1", "0" etc.
+		if err != nil {
+			return fmt.Errorf("invalid boolean: %s", value)
+		}
+		field.SetBool(b)
+	case reflect.Float32, reflect.Float64:
+		f, err := strconv.ParseFloat(value, 64)
+		if err != nil {
+			return fmt.Errorf("invalid float: %s", value)
+		}
+		field.SetFloat(f)
+	default:
+		return fmt.Errorf("unsupported field type: %s", field.Kind())
+	}
+
+	//field.Set(reflect.ValueOf(value))
+	fmt.Printf("Set %s to %s", fieldName, value)
+	return nil
+}
 
 ////////////////| Publish Handler |////////////////////////////
 

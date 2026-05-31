@@ -67,7 +67,7 @@ func RenderBox(elements ...string) error {
 
 func renderPost(post client.Post, fullPost bool, resize bool) { //Full post should be set to false in the feed to truncate posts in the feed. THis is not implemented yet!
 	if resize {
-		resizeDisplay()
+		resizeDisplay(resize)
 	}
 
 	simpleID, _ := getSimpleID(post.PostID)
@@ -128,9 +128,9 @@ func renderPost(post client.Post, fullPost bool, resize bool) { //Full post shou
 }
 
 func renderReply(reply client.Reply, resize bool) {
-	if resize {
-		resizeDisplay()
-	}
+
+	resizeDisplay(resize)
+
 	simpleID, _ := getSimpleID(reply.ReplyID)
 	responseTarget := "" //reply.ParentPostAuthor
 	if reply.ParentReplyAuthor != "" {
@@ -173,7 +173,7 @@ type Note struct {
 
 func renderNote(note client.Note, fullNote bool, resize bool) { //Full note should be set to false in the feed to truncate posts in the feed. THis is not implemented yet!
 	if resize {
-		resizeDisplay()
+		resizeDisplay(resize)
 	}
 
 	simpleID, _ := getSimpleID(note.NoteID)
@@ -209,7 +209,7 @@ func renderNote(note client.Note, fullNote bool, resize bool) { //Full note shou
 
 func renderNotification(csc *client.APIClient, n client.Notification, resize bool) {
 	if resize {
-		resizeDisplay()
+		resizeDisplay(resize)
 	}
 	simpleID, _ := getSimpleID(n.TargetID)
 
@@ -229,7 +229,7 @@ func renderNotification(csc *client.APIClient, n client.Notification, resize boo
 
 func renderBookmarkPost(post client.Post, bookmark_id int, resize bool) {
 	if resize {
-		resizeDisplay()
+		resizeDisplay(resize)
 	}
 
 	replies := ""
@@ -279,7 +279,7 @@ func renderBookmarkPost(post client.Post, bookmark_id int, resize bool) {
 
 func renderBookmarkReply(reply client.Reply, bookmark_id int, resize bool) {
 	if resize {
-		resizeDisplay()
+		resizeDisplay(resize)
 	}
 	responseTarget := ""
 	if reply.ParentReplyAuthor != "" {
@@ -316,7 +316,7 @@ func renderPrint(str string) {
 
 func renderProfile(user client.User, resize bool) {
 	if resize {
-		resizeDisplay()
+		resizeDisplay(resize)
 	}
 	timeSince := humanize.Time(user.CreatedAt)
 	guild := ""
@@ -359,7 +359,16 @@ func renderProfile(user client.User, resize bool) {
 
 /////////////////////| Customizing display-width logic |////////////////
 
-func resizeDisplay() {
+func resizeDisplay(resize bool) {
+	if resize == false {
+		for _, style := range boxes {
+			var newStyle = style.Width(86)
+			*style = newStyle
+
+		}
+		return
+	}
+
 	width, _, err := term.GetSize(int(os.Stdout.Fd()))
 	if err != nil {
 		fmt.Printf("Error getting terminal dimensions: %s", err)
