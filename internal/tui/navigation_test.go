@@ -15,6 +15,10 @@ func pressShiftTab() tea.KeyMsg {
 	return tea.KeyPressMsg(tea.Key{Code: tea.KeyTab, Mod: tea.ModShift})
 }
 
+func pressEsc() tea.KeyMsg {
+	return tea.KeyPressMsg(tea.Key{Code: tea.KeyEsc})
+}
+
 func pressPageUp() tea.KeyMsg {
 	return tea.KeyPressMsg(tea.Key{Code: tea.KeyPgUp})
 }

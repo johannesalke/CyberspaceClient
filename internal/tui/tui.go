@@ -407,10 +407,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		case !m.showHelp && m.page == feedPage && m.sidebarFocus == sidebarFocusNotifications:
 			return m.updateNotificationFocus(msg)
-		case !m.showHelp && m.page == feedPage && m.sidebarWidth() > 0 && m.matches("focus_notifications", msg):
-			m.sidebarFocus = sidebarFocusNotifications
-			m.clampNotifIdx()
-			return m, nil
+		case !m.showHelp && m.page == feedPage && m.matches("focus_notifications", msg):
+			if m.sidebarWidth() > 0 {
+				m.sidebarFocus = sidebarFocusNotifications
+				m.clampNotifIdx()
+				return m, nil
+			}
+			return m.switchPage(notificationsPage)
 		case !m.showHelp && m.matches("page_feed", msg):
 			return m.switchPage(feedPage)
 		case !m.showHelp && m.matches("page_bookmarks", msg):
@@ -467,7 +470,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.jukeboxNextPage()
 		case !m.showHelp && m.page == jukeboxPage && m.matches("jukebox_page_previous", msg):
 			return m.jukeboxPreviousPage()
-		case !m.showHelp && m.page == jukeboxPage && m.matches("back", msg):
+		case !m.showHelp && m.page != feedPage && m.matches("back", msg):
 			m.page = feedPage
 			m.err = nil
 			m.sidebarFocus = sidebarFocusFeed
@@ -1376,13 +1379,20 @@ func (m *Model) resizeViewport() {
 	m.viewport.SetHeight(max(m.height-3, 1))
 }
 
-// sidebarWidth is the width of the right-hand panel on the feed page. It is
-// only used on terminals wide enough that the feed still has room to breathe.
+// sidebarWidth is the width of the right-hand panel on the feed page. The
+// panel shrinks to fit narrower terminals and disappears entirely only when
+// the feed would be too cramped to read.
 func (m Model) sidebarWidth() int {
-	if m.width >= 100 {
+	switch {
+	case m.width >= 120:
 		return 34
+	case m.width >= 100:
+		return 30
+	case m.width >= 80:
+		return 26
+	default:
+		return 0
 	}
-	return 0
 }
 
 func (m *Model) renderFeed() {

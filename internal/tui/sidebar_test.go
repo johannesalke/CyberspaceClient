@@ -10,15 +10,77 @@ import (
 )
 
 func TestSidebarWidthThreshold(t *testing.T) {
-	narrow := newTestModel()
-	narrow.width = 99
-	if w := narrow.sidebarWidth(); w != 0 {
-		t.Fatalf("narrow terminal should hide the sidebar, got width %d", w)
+	hidden := newTestModel()
+	hidden.width = 79
+	if w := hidden.sidebarWidth(); w != 0 {
+		t.Fatalf("very narrow terminal should hide the sidebar, got width %d", w)
+	}
+	compact := newTestModel()
+	compact.width = 80
+	if w := compact.sidebarWidth(); w != 26 {
+		t.Fatalf("80-column terminal should show a 26-column sidebar, got %d", w)
+	}
+	medium := newTestModel()
+	medium.width = 100
+	if w := medium.sidebarWidth(); w != 30 {
+		t.Fatalf("100-column terminal should show a 30-column sidebar, got %d", w)
 	}
 	wide := newTestModel()
-	wide.width = 100
+	wide.width = 120
 	if w := wide.sidebarWidth(); w != 34 {
 		t.Fatalf("wide terminal should show a 34-column sidebar, got %d", w)
+	}
+}
+
+func TestShiftedNMatchesFocusBinding(t *testing.T) {
+	m := newTestModel()
+	m.width = 120
+	shifted := tea.KeyPressMsg(tea.Key{Code: 'n', Mod: tea.ModShift, Text: "N"})
+	if !m.matches("focus_notifications", shifted) {
+		t.Fatal("shift+n (as a real terminal delivers it) should match the focus_notifications binding")
+	}
+	updated, cmd := m.Update(shifted)
+	m = updated.(Model)
+	if m.sidebarFocus != sidebarFocusNotifications {
+		t.Fatal("shift+n should focus the sidebar notifications panel")
+	}
+	if cmd != nil {
+		t.Fatalf("focusing the sidebar should not load anything, got cmd %v", cmd)
+	}
+}
+
+func TestFocusNotificationsFallsBackToPage(t *testing.T) {
+	m := newTestModel()
+	m.width = 79
+	m.page = feedPage
+	updated, cmd := m.Update(press('N'))
+	m = updated.(Model)
+	if m.page != notificationsPage {
+		t.Fatalf("N on a terminal with no sidebar should open the notifications page, got %q", m.page)
+	}
+	if cmd == nil {
+		t.Fatal("opening the notifications page should kick off a load")
+	}
+}
+
+func TestBackExitsNotificationsPage(t *testing.T) {
+	m := newTestModel()
+	m.width, m.height = 120, 30
+	m.page = notificationsPage
+	m.err = fmt.Errorf("stale error")
+	updated, cmd := m.Update(pressEsc())
+	m = updated.(Model)
+	if m.page != feedPage {
+		t.Fatalf("esc should leave the notifications page and return to the feed, got %q", m.page)
+	}
+	if m.sidebarFocus != sidebarFocusFeed {
+		t.Fatal("leaving the notifications page should reset sidebar focus to the feed")
+	}
+	if m.err != nil {
+		t.Fatalf("leaving the notifications page should clear errors, got %v", m.err)
+	}
+	if cmd != nil {
+		t.Fatalf("leaving the notifications page should not load anything, got cmd %v", cmd)
 	}
 }
 
