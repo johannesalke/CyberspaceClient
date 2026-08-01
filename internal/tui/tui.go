@@ -114,44 +114,44 @@ type jukeboxLoadedMsg struct {
 // Model displays a read-only, keyboard-navigable feed. Posting and other
 // actions will be added as dedicated pages rather than command-line verbs.
 type Model struct {
-	client        *client.APIClient
-	viewport      viewport.Model
-	posts         []client.Post
-	bookmarks     []client.Bookmark
-	notifications []client.Notification
-	notes         []client.Note
-	profile       client.User
-	page          pageID
-	cursor        string
-	width         int
-	height        int
-	loading       bool
-	err           error
-	showHelp      bool
-	keys          map[string][]string
-	composer      textarea.Model
-	composing     bool
-	confirmPost   bool
-	posting       bool
-	replying      bool
-	theme         string
-	selectedPost  int
-	viewingPost   bool
-	activePost    client.Post
-	replies       []client.Reply
-	replyIdx      int
-	replyParentID string
-	replyParentAuthor string
-	notice        string
-	tracks        []Track
-	tracksCursor  string
-	player        *audioPlayer
-	jukeboxIdx    int
-	jukeboxPage   int
+	client             *client.APIClient
+	viewport           viewport.Model
+	posts              []client.Post
+	bookmarks          []client.Bookmark
+	notifications      []client.Notification
+	notes              []client.Note
+	profile            client.User
+	page               pageID
+	cursor             string
+	width              int
+	height             int
+	loading            bool
+	err                error
+	showHelp           bool
+	keys               map[string][]string
+	composer           textarea.Model
+	composing          bool
+	confirmPost        bool
+	posting            bool
+	replying           bool
+	theme              string
+	selectedPost       int
+	viewingPost        bool
+	activePost         client.Post
+	replies            []client.Reply
+	replyIdx           int
+	replyParentID      string
+	replyParentAuthor  string
+	notice             string
+	tracks             []Track
+	tracksCursor       string
+	player             *audioPlayer
+	jukeboxIdx         int
+	jukeboxPage        int
 	jukeboxAdvancePage bool
-	nowPlaying    int
-	paused        bool
-	playerErr     error
+	nowPlaying         int
+	paused             bool
+	playerErr          error
 }
 
 // New creates the Cyberspace feed TUI.
@@ -161,15 +161,15 @@ func New(c *client.APIClient) Model {
 	selectedTheme := normalizeTheme(c.Config.Settings.Theme)
 	applyTheme(selectedTheme)
 	return Model{
-		client:     c,
-		loading:    true,
-		viewport:   pager,
-		keys:       client.ResolveKeyBindings(c.Config.Settings.KeyBindings),
-		page:       feedPage,
-		theme:      selectedTheme,
-		player:     newAudioPlayer(),
+		client:      c,
+		loading:     true,
+		viewport:    pager,
+		keys:        client.ResolveKeyBindings(c.Config.Settings.KeyBindings),
+		page:        feedPage,
+		theme:       selectedTheme,
+		player:      newAudioPlayer(),
 		jukeboxPage: 1,
-		nowPlaying: -1,
+		nowPlaying:  -1,
 	}
 }
 
@@ -780,7 +780,7 @@ func (m *Model) renderJukebox() {
 		rows = append(rows, postStyle.Width(max(m.width-6, 24)).Render(line))
 	}
 	if m.tracksCursor != "" {
-		rows = append(rows, metaStyle.Render("More tracks further back in the feed: press " + m.keyNames("jukebox_page_next") + " to load the next page."))
+		rows = append(rows, metaStyle.Render("More tracks further back in the feed: press "+m.keyNames("jukebox_page_next")+" to load the next page."))
 	}
 	m.viewport.SetContent(strings.Join(rows, "\n"))
 }
