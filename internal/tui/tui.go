@@ -1054,6 +1054,9 @@ func (m Model) helpLine() string {
 	if m.page == feedPage && m.sidebarWidth() > 0 && m.sidebarFocus == sidebarFocusFeed {
 		line = m.keyNames("focus_notifications") + " notifications  ·  " + line
 	}
+	if m.page != feedPage {
+		line = m.keyNames("back") + " back  ·  " + line
+	}
 	return line
 }
 
@@ -1074,9 +1077,9 @@ func (m Model) helpView() string {
 		m.helpRow("select_next", "select next feed post / reply / notification"),
 		m.helpRow("select_previous", "select previous feed post / reply / notification"),
 		m.helpRow("open_post", "open post / reply / notification"),
-		m.helpRow("focus_notifications", "focus the sidebar notifications (feed)"),
+		m.helpRow("focus_notifications", "focus the sidebar notifications (N or n, feed)"),
 		m.helpRow("toggle_bookmark", "bookmark selected post"),
-		m.helpRow("back", "back to feed (post detail, jukebox, notifications)"),
+		m.helpRow("back", "back to feed (any page other than the feed)"),
 		m.helpRow("jukebox_select_next", "select next track"),
 		m.helpRow("jukebox_select_previous", "select previous track"),
 		m.helpRow("jukebox_play", "play selected track"),
@@ -1456,11 +1459,11 @@ func renderPost(post client.Post, width int) string {
 	}
 
 	meta := relativeTime(post.CreatedAt)
-	if post.BookmarksCount > 0 {
-		meta += fmt.Sprintf("  ·  %d saves", post.BookmarksCount)
-	}
 	if post.RepliesCount > 0 {
 		meta += fmt.Sprintf("  ·  %d replies", post.RepliesCount)
+	}
+	if post.BookmarksCount > 0 {
+		meta += fmt.Sprintf("  ·  %d saves", post.BookmarksCount)
 	}
 
 	parts := []string{titleStyle.Render("@" + post.AuthorUsername), metaStyle.Render(meta), wrap(content, contentWidth)}

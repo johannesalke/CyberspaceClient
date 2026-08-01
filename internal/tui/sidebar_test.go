@@ -49,6 +49,37 @@ func TestShiftedNMatchesFocusBinding(t *testing.T) {
 	}
 }
 
+func TestPlainNMatchesFocusBinding(t *testing.T) {
+	m := newTestModel()
+	m.width = 120
+	if !m.matches("focus_notifications", press('n')) {
+		t.Fatal("plain n should also match the focus_notifications binding")
+	}
+	updated, cmd := m.Update(press('n'))
+	m = updated.(Model)
+	if m.sidebarFocus != sidebarFocusNotifications {
+		t.Fatal("plain n should focus the sidebar notifications panel")
+	}
+	if cmd != nil {
+		t.Fatalf("focusing the sidebar should not load anything, got cmd %v", cmd)
+	}
+}
+
+func TestOlderPostsMovedOffN(t *testing.T) {
+	m := newTestModel()
+	m.width, m.height = 120, 30
+	m.cursor = "cursor-1"
+	if m.matches("next_page", press('n')) {
+		t.Fatal("n should no longer load older posts, it is the notifications shortcut now")
+	}
+	if !m.matches("next_page", press('o')) {
+		t.Fatal("plain o should load older posts")
+	}
+	if !m.matches("next_page", tea.KeyPressMsg(tea.Key{Code: 'o', Mod: tea.ModShift, Text: "O"})) {
+		t.Fatal("shift+o should also load older posts")
+	}
+}
+
 func TestFocusNotificationsFallsBackToPage(t *testing.T) {
 	m := newTestModel()
 	m.width = 79
@@ -81,6 +112,19 @@ func TestBackExitsNotificationsPage(t *testing.T) {
 	}
 	if cmd != nil {
 		t.Fatalf("leaving the notifications page should not load anything, got cmd %v", cmd)
+	}
+}
+
+func TestNotificationsFooterShowsBack(t *testing.T) {
+	m := newTestModel()
+	m.page = notificationsPage
+	if line := m.helpLine(); !strings.Contains(line, m.keyNames("back")+" back") {
+		t.Fatalf("the notifications page footer should advertise esc back, got %q", line)
+	}
+	feed := newTestModel()
+	feed.page = feedPage
+	if line := feed.helpLine(); strings.Contains(line, m.keyNames("back")+" back") {
+		t.Fatalf("the feed page footer should not advertise back, got %q", line)
 	}
 }
 

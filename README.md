@@ -53,7 +53,7 @@ Then launch it from any directory:
 cyberspace
 ```
 
-Use `↑`/`↓` to scroll, `r` to refresh, `n` to load older posts, and `q` to exit. The command is installed to `~/.local/bin`; that directory is on `PATH` in most setups. To remove the installed command later, run `make uninstall`.
+Use `↑`/`↓` to scroll, `r` to refresh, `o` (or `→`) to load older posts, and `q` to exit. The command is installed to `~/.local/bin`; that directory is on `PATH` in most setups. To remove the installed command later, run `make uninstall`.
 
 ### Building a release
 
@@ -91,7 +91,7 @@ The interface is organized into seven pages, one per number key:
 
 **Replying** — `enter` opens the selected post with its replies. `tab`/`shift+tab` (or `j`/`k`) moves the selection across the replies, and `enter` or `r` opens the composer addressed to the reply (or post) you selected. `b` bookmarks the open post.
 
-**Feed sidebar** — on terminals at least 80 columns wide the feed page carries a right-hand panel that adapts to the screen (26 columns at 80-99, 30 at 100-119, 34 at 120+). Its top half lists recent notifications, and its bottom half shows the jukebox's now-playing track. Press `N` to move keyboard focus into the notifications list: `tab`/`shift+tab` (or the movement keys) cycle the selection, `enter` opens the notification's post or reply (marking it read), and `esc` returns focus to the feed. On terminals too narrow for the panel, `N` opens the full notifications page instead. Tabbing through feed posts keeps the selection in view by scrolling the feed automatically, so a selected post is never stranded off-screen. Every page other than the feed returns to it with `esc`.
+**Feed sidebar** — on terminals at least 80 columns wide the feed page carries a right-hand panel that adapts to the screen (26 columns at 80-99, 30 at 100-119, 34 at 120+). Its top half lists recent notifications, and its bottom half shows the jukebox's now-playing track. Press `N` (that is `shift+N`) or the plain `n` key to move keyboard focus into the notifications list: `tab`/`shift+tab` (or the movement keys) cycle the selection, `enter` opens the notification's post or reply (marking it read), and `esc` returns focus to the feed. On terminals too narrow for the panel, `N`/`n` opens the full notifications page instead. Tabbing through feed posts keeps the selection in view by scrolling the feed automatically, so a selected post is never stranded off-screen. Every page other than the feed returns to it with `esc`, and that `esc back` command is shown at the bottom of each such page.
 
 **Player anywhere** — while a track is playing, the non-conflicting player keys work from the feed page too: `p` pauses, `x` stops, `←`/`→` skip tracks. `→` loads older posts instead while there are still pages of the feed left to read.
 
