@@ -33,6 +33,9 @@ var themes = []theme{
 	{name: "mono", accent: "#f0f0f0", muted: "#a0a0a0", border: "#707070"},
 }
 
+// wordmark is the client's stylized brand line, shown as the TUI headline.
+const wordmark = "ᑕ¥βєяรקค¢є"
+
 var (
 	titleStyle lipgloss.Style
 	metaStyle  lipgloss.Style
@@ -450,6 +453,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
+// header renders the wordmark and status line centered at the top of the
+// screen. The glyphs are spread out so the brand line reads as a display
+// headline rather than a plain label.
+func (m Model) header() string {
+	spread := strings.Join(strings.Split(wordmark, ""), " ")
+	title := titleStyle.Width(m.width).Align(lipgloss.Center).Render(spread)
+	meta := metaStyle.Width(m.width).Align(lipgloss.Center).Render("@" + m.client.Username + "  ·  " + string(m.page) + "  ·  " + m.theme)
+	return lipgloss.JoinVertical(lipgloss.Left, title, meta)
+}
+
 func (m Model) View() tea.View {
 	if m.width == 0 {
 		view := tea.NewView("Loading Cyberspace…")
@@ -457,7 +470,7 @@ func (m Model) View() tea.View {
 		return view
 	}
 
-	header := titleStyle.Render("ᑕ¥βєяรקค¢є") + "  " + metaStyle.Render("@"+m.client.Username+"  ·  "+string(m.page)+"  ·  "+m.theme)
+	header := m.header()
 	if m.composing {
 		view := tea.NewView(m.composerView(header))
 		view.AltScreen = true
@@ -1088,7 +1101,7 @@ func (m *Model) resizeViewport() {
 		return
 	}
 	m.viewport.SetWidth(m.width)
-	m.viewport.SetHeight(max(m.height-2, 1))
+	m.viewport.SetHeight(max(m.height-3, 1))
 }
 
 func (m *Model) renderFeed() {
