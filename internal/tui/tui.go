@@ -12,6 +12,7 @@ import (
 	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
 	client "github.com/johannesalke/cyberspacecli/internal/cyberspaceClient"
 )
 
@@ -65,6 +66,17 @@ const (
 type notificationsLoadedMsg struct {
 	items []client.Notification
 	err   error
+}
+
+// sidebarNotificationsMsg refreshes the sidebar's notification list without
+// touching the page loading state, so the feed can render independently.
+type sidebarNotificationsMsg struct {
+	items []client.Notification
+	err   error
+}
+
+type notificationReadMsg struct {
+	err error
 }
 
 type bookmarksLoadedMsg struct {
@@ -155,24 +167,38 @@ type Model struct {
 	nowPlaying         int
 	paused             bool
 	playerErr          error
+	feedOffsets        []int
+	sidebarFocus       string
+	notifIdx           int
+	pendingReplyID     string
 }
+
+// Sidebar focus states. The feed page owns a right-hand sidebar whose
+// notifications panel can take keyboard focus so the user can browse and open
+// notifications without leaving the front page.
+const (
+	sidebarFocusFeed          = "feed"
+	sidebarFocusNotifications = "notifications"
+)
 
 // New creates the Cyberspace feed TUI.
 func New(c *client.APIClient) Model {
 	pager := viewport.New()
 	pager.KeyMap = disabledViewportKeyMap()
+	pager.FillHeight = true
 	selectedTheme := normalizeTheme(c.Config.Settings.Theme)
 	applyTheme(selectedTheme)
 	return Model{
-		client:      c,
-		loading:     true,
-		viewport:    pager,
-		keys:        client.ResolveKeyBindings(c.Config.Settings.KeyBindings),
-		page:        feedPage,
-		theme:       selectedTheme,
-		player:      newAudioPlayer(),
-		jukeboxPage: 1,
-		nowPlaying:  -1,
+		client:       c,
+		loading:      true,
+		viewport:     pager,
+		keys:         client.ResolveKeyBindings(c.Config.Settings.KeyBindings),
+		page:         feedPage,
+		theme:        selectedTheme,
+		player:       newAudioPlayer(),
+		jukeboxPage:  1,
+		nowPlaying:   -1,
+		sidebarFocus: sidebarFocusFeed,
 	}
 }
 
@@ -216,7 +242,7 @@ func disabledViewportKeyMap() viewport.KeyMap {
 }
 
 func (m Model) Init() tea.Cmd {
-	return m.loadFeed("", true)
+	return tea.Batch(m.loadFeed("", true), m.loadSidebarNotifications())
 }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -248,7 +274,19 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case notificationsLoadedMsg:
 		m.loading, m.err, m.notifications = false, msg.err, msg.items
+		m.clampNotifIdx()
 		m.renderCurrentPage()
+		return m, nil
+	case sidebarNotificationsMsg:
+		if msg.err == nil {
+			m.notifications = msg.items
+			m.clampNotifIdx()
+		}
+		return m, nil
+	case notificationReadMsg:
+		if msg.err != nil {
+			m.err = msg.err
+		}
 		return m, nil
 	case bookmarksLoadedMsg:
 		m.loading, m.err, m.bookmarks = false, msg.err, msg.items
@@ -282,6 +320,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.err == nil {
 			m.activePost, m.replies, m.viewingPost = msg.post, msg.replies, true
 			m.replyIdx = -1
+			if m.pendingReplyID != "" {
+				if idx := slices.IndexFunc(m.replies, func(r client.Reply) bool { return r.ReplyID == m.pendingReplyID }); idx >= 0 {
+					m.replyIdx = idx
+				}
+				m.pendingReplyID = ""
+			}
 			m.renderPostDetail()
 		}
 		return m, nil
@@ -361,6 +405,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case m.matches("help", msg):
 			m.showHelp = !m.showHelp
 			return m, nil
+		case !m.showHelp && m.page == feedPage && m.sidebarFocus == sidebarFocusNotifications:
+			return m.updateNotificationFocus(msg)
+		case !m.showHelp && m.page == feedPage && m.sidebarWidth() > 0 && m.matches("focus_notifications", msg):
+			m.sidebarFocus = sidebarFocusNotifications
+			m.clampNotifIdx()
+			return m, nil
 		case !m.showHelp && m.matches("page_feed", msg):
 			return m.switchPage(feedPage)
 		case !m.showHelp && m.matches("page_bookmarks", msg):
@@ -383,12 +433,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if len(m.posts) > 0 {
 				m.selectedPost = min(m.selectedPost+1, len(m.posts)-1)
 				m.renderFeed()
+				m.revealFeedSelection()
 			}
 			return m, nil
 		case !m.showHelp && m.page == feedPage && m.matches("select_previous", msg):
 			if len(m.posts) > 0 {
 				m.selectedPost = max(m.selectedPost-1, 0)
 				m.renderFeed()
+				m.revealFeedSelection()
 			}
 			return m, nil
 		case !m.showHelp && m.page == feedPage && m.matches("open_post", msg) && len(m.posts) > 0:
@@ -418,12 +470,22 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case !m.showHelp && m.page == jukeboxPage && m.matches("back", msg):
 			m.page = feedPage
 			m.err = nil
+			m.sidebarFocus = sidebarFocusFeed
+			m.resizeViewport()
 			m.viewport.GotoTop()
 			m.renderFeed()
 			return m, nil
+		case !m.showHelp && m.nowPlaying >= 0 && m.matches("jukebox_pause", msg):
+			return m.jukeboxPause()
+		case !m.showHelp && m.nowPlaying >= 0 && m.matches("jukebox_stop", msg):
+			return m.jukeboxStop()
+		case !m.showHelp && m.nowPlaying >= 0 && m.matches("jukebox_previous", msg):
+			return m.jukeboxPrevious()
+		case !m.showHelp && m.nowPlaying >= 0 && m.matches("jukebox_next", msg) && (m.page != feedPage || m.cursor == ""):
+			return m.jukeboxNext()
 		case !m.showHelp && m.matches("refresh", msg) && !m.loading:
 			m.loading, m.err = true, nil
-			return m, m.loadCurrentPage()
+			return m, tea.Batch(m.loadCurrentPage(), m.loadSidebarNotifications())
 		case !m.showHelp && m.page == feedPage && m.matches("next_page", msg) && !m.loading && m.cursor != "":
 			m.loading, m.err = true, nil
 			return m, m.loadFeed(m.cursor, false)
@@ -493,13 +555,23 @@ func (m Model) View() tea.View {
 		footer = helpStyle.Render(m.jukeboxStatusLine())
 	}
 
-	content := lipgloss.JoinVertical(lipgloss.Left, header, m.viewport.View(), footer)
+	content := lipgloss.JoinVertical(lipgloss.Left, header, m.bodyView(), footer)
 	if m.showHelp {
 		content = lipgloss.JoinVertical(lipgloss.Left, header, m.helpView())
 	}
 	view := tea.NewView(content)
 	view.AltScreen = true
 	return view
+}
+
+// bodyView renders the main viewport, joined with the feed page's right-hand
+// sidebar when the terminal is wide enough to hold one.
+func (m Model) bodyView() string {
+	body := m.viewport.View()
+	if m.page == feedPage && m.sidebarWidth() > 0 {
+		body = lipgloss.JoinHorizontal(lipgloss.Top, body, m.sidebarView())
+	}
+	return body
 }
 
 func (m Model) openComposer() (tea.Model, tea.Cmd) {
@@ -612,6 +684,84 @@ func (m Model) updatePostDetail(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 	m.viewport, cmd = m.viewport.Update(msg)
 	return m, cmd
+}
+
+// clampNotifIdx keeps the sidebar's notification selection inside the loaded
+// list, guarding against stale indexes after a refresh shrinks the set.
+func (m *Model) clampNotifIdx() {
+	if len(m.notifications) == 0 {
+		m.notifIdx = 0
+		return
+	}
+	if m.notifIdx < 0 {
+		m.notifIdx = 0
+	}
+	if m.notifIdx >= len(m.notifications) {
+		m.notifIdx = len(m.notifications) - 1
+	}
+}
+
+// updateNotificationFocus handles keys while the sidebar's notifications panel
+// owns keyboard focus. Tab and the movement keys cycle the selection, enter
+// opens the selected notification's target, and esc returns focus to the feed.
+func (m Model) updateNotificationFocus(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	m.clampNotifIdx()
+	switch {
+	case m.matches("back", msg):
+		m.sidebarFocus = sidebarFocusFeed
+		return m, nil
+	case m.matches("select_next", msg) || m.matches("scroll_down", msg):
+		if len(m.notifications) > 0 {
+			m.notifIdx = min(m.notifIdx+1, len(m.notifications)-1)
+		}
+		return m, nil
+	case m.matches("select_previous", msg) || m.matches("scroll_up", msg):
+		if len(m.notifications) > 0 {
+			m.notifIdx = max(m.notifIdx-1, 0)
+		}
+		return m, nil
+	case m.matches("open_post", msg) && len(m.notifications) > 0:
+		return m.openNotification(m.notifications[m.notifIdx])
+	}
+	return m, nil
+}
+
+// openNotification opens the content behind a sidebar notification. Reply and
+// post notifications load the post detail (highlighting the specific reply if
+// one is known); purely social notifications have nothing to view.
+func (m Model) openNotification(n client.Notification) (tea.Model, tea.Cmd) {
+	m.loading, m.err, m.notice = true, nil, ""
+	if m.notifIdx >= 0 && m.notifIdx < len(m.notifications) {
+		m.notifications[m.notifIdx].Read = true
+	}
+	if !isPostTargetNotification(n) {
+		m.loading, m.err, m.notice = false, nil, "This notification has no content to view."
+		return m, m.markNotificationRead(n.ID)
+	}
+	m.pendingReplyID = n.Metadata.ReplyID
+	return m, tea.Batch(
+		m.loadPostDetail(n.TargetID),
+		m.markNotificationRead(n.ID),
+	)
+}
+
+func isPostTargetNotification(n client.Notification) bool {
+	switch n.Type {
+	case "reply", "thread_reply", "new_post_following", "new_post_friend", "bookmark", "post_mention", "reply_mention":
+		return true
+	}
+	return false
+}
+
+func (m Model) loadSidebarNotifications() tea.Cmd {
+	return func() tea.Msg {
+		items, _, err := m.client.GetNotifications(15, "")
+		return sidebarNotificationsMsg{items: items, err: err}
+	}
+}
+
+func (m Model) markNotificationRead(id string) tea.Cmd {
+	return func() tea.Msg { return notificationReadMsg{err: m.client.MarkAsRead(id)} }
 }
 
 func (m Model) loadPostDetail(postID string) tea.Cmd {
@@ -896,8 +1046,12 @@ func (m Model) matches(action string, msg tea.KeyMsg) bool {
 }
 
 func (m Model) helpLine() string {
-	return fmt.Sprintf("%s help  ·  %s refresh  ·  %s older posts  ·  %s quit",
+	line := fmt.Sprintf("%s help  ·  %s refresh  ·  %s older posts  ·  %s quit",
 		m.keyNames("help"), m.keyNames("refresh"), m.keyNames("next_page"), m.keyNames("quit"))
+	if m.page == feedPage && m.sidebarWidth() > 0 && m.sidebarFocus == sidebarFocusFeed {
+		line = m.keyNames("focus_notifications") + " notifications  ·  " + line
+	}
+	return line
 }
 
 func (m Model) helpView() string {
@@ -914,11 +1068,12 @@ func (m Model) helpView() string {
 		m.helpRow("compose_post", "compose post"),
 		m.helpRow("submit_post", "review post"),
 		m.helpRow("switch_theme", "cycle theme"),
-		m.helpRow("select_next", "select next feed post / reply"),
-		m.helpRow("select_previous", "select previous feed post / reply"),
-		m.helpRow("open_post", "open post / reply to selected"),
+		m.helpRow("select_next", "select next feed post / reply / notification"),
+		m.helpRow("select_previous", "select previous feed post / reply / notification"),
+		m.helpRow("open_post", "open post / reply / notification"),
+		m.helpRow("focus_notifications", "focus the sidebar notifications (feed)"),
 		m.helpRow("toggle_bookmark", "bookmark selected post"),
-		m.helpRow("back", "back to feed (post detail, jukebox)"),
+		m.helpRow("back", "back to feed (post detail, jukebox, notifications)"),
 		m.helpRow("jukebox_select_next", "select next track"),
 		m.helpRow("jukebox_select_previous", "select previous track"),
 		m.helpRow("jukebox_play", "play selected track"),
@@ -949,6 +1104,8 @@ func (m Model) switchPage(page pageID) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	m.page, m.loading, m.err = page, true, nil
+	m.sidebarFocus = sidebarFocusFeed
+	m.resizeViewport()
 	m.viewport.GotoTop()
 	return m, m.loadCurrentPage()
 }
@@ -1018,6 +1175,117 @@ func renderNotifications(items []client.Notification, width int) string {
 		rows = append(rows, postStyle.Width(max(width-6, 24)).Render(fmt.Sprintf("%s  ·  %s  ·  %s", titleStyle.Render("@"+item.ActorUsername), item.Type, state)+"\n"+metaStyle.Render(relativeTime(item.CreatedAt))))
 	}
 	return strings.Join(rows, "\n\n")
+}
+
+// sidebarView builds the feed page's right-hand panel: the notifications list
+// on top and the player at the bottom, sized to the viewport.
+func (m Model) sidebarView() string {
+	const width = 34
+	player := m.playerPanel(width)
+	playerHeight := strings.Count(player, "\n") + 1
+	avail := max(m.height-3, 1)
+	notifHeight := max(avail-playerHeight, 1)
+	return lipgloss.JoinVertical(lipgloss.Left, m.notificationsPanel(width, notifHeight), player)
+}
+
+func (m Model) notificationsPanel(width, height int) string {
+	return postStyle.Width(width).Height(height).Render(m.notificationsPanelContent(width, height))
+}
+
+func (m Model) notificationsPanelContent(width, height int) string {
+	contentWidth := max(width-4, 10)
+	title := titleStyle.Render("Notifications")
+	if len(m.notifications) == 0 {
+		return title + "\n" + metaStyle.Render(truncate("No notifications yet. Refresh to check again.", contentWidth))
+	}
+	maxRows := max(height-3, 1)
+	more := len(m.notifications) - maxRows
+	if more > 0 {
+		maxRows--
+	}
+	limit := min(len(m.notifications), maxRows)
+	rows := make([]string, 0, limit)
+	for i := 0; i < limit; i++ {
+		rows = append(rows, m.notificationRow(i, m.notifications[i], contentWidth))
+	}
+	content := title + "\n" + strings.Join(rows, "\n")
+	if more > 0 {
+		content += "\n" + metaStyle.Render(truncate(fmt.Sprintf("… %d more · %s", more, m.keyNames("page_notifications")), contentWidth))
+	}
+	return content
+}
+
+func (m Model) notificationRow(i int, item client.Notification, width int) string {
+	state := "read"
+	if !item.Read {
+		state = "new"
+	}
+	line := "@" + item.ActorUsername + " · " + notificationTypeLabel(item.Type) + " · " + state
+	if m.sidebarFocus == sidebarFocusNotifications && i == m.notifIdx {
+		return truncate(titleStyle.Render("▶ "+line), width)
+	}
+	return truncate(metaStyle.Render(line), width)
+}
+
+// notificationTypeLabel maps raw API notification types to the short, human
+// wording used in the sidebar rows.
+func notificationTypeLabel(notificationType string) string {
+	switch notificationType {
+	case "reply", "thread_reply":
+		return "replied"
+	case "new_follower":
+		return "followed"
+	case "unfollowed":
+		return "unfollowed"
+	case "poke":
+		return "poked"
+	case "bookmark":
+		return "bookmarked"
+	case "new_post_following", "new_post_friend":
+		return "posted"
+	case "post_mention", "reply_mention", "chat_mention":
+		return "mentioned"
+	case "dm_message":
+		return "message"
+	case "system_ban":
+		return "banned"
+	default:
+		return notificationType
+	}
+}
+
+func (m Model) playerPanel(width int) string {
+	return postStyle.Width(width).Render(m.playerPanelContent(width))
+}
+
+func (m Model) playerPanelContent(width int) string {
+	contentWidth := max(width-4, 10)
+	title := titleStyle.Render("♪ Now playing")
+	if m.nowPlaying < 0 || m.nowPlaying >= len(m.tracks) {
+		hint := truncate("Nothing playing. Open the jukebox "+m.keyNames("page_jukebox")+" and press "+m.keyNames("jukebox_play")+" on a track.", contentWidth)
+		return title + "\n" + metaStyle.Render(hint)
+	}
+	state := "playing"
+	if m.paused {
+		state = "paused"
+	}
+	track := truncate(m.tracks[m.nowPlaying].Label(), contentWidth)
+	controls := truncate(
+		m.keyNames("jukebox_pause")+" pause · "+m.keyNames("jukebox_stop")+" stop · "+m.keyNames("jukebox_previous")+" prev · "+m.keyNames("jukebox_next")+" next",
+		contentWidth)
+	return title + "\n" + track + "\n" + state + "\n" + metaStyle.Render(controls)
+}
+
+// truncate shortens a string to the given display width, keeping ANSI styling
+// intact. A wide character such as the stylized brand glyph counts as one cell.
+func truncate(s string, width int) string {
+	if width <= 0 {
+		return ""
+	}
+	if ansi.StringWidth(s) <= width {
+		return s
+	}
+	return ansi.Truncate(s, width, "…")
 }
 
 func renderBookmarks(items []client.Bookmark, width int) string {
@@ -1100,8 +1368,21 @@ func (m *Model) resizeViewport() {
 	if m.width == 0 || m.height == 0 {
 		return
 	}
-	m.viewport.SetWidth(m.width)
+	width := m.width
+	if m.page == feedPage {
+		width -= m.sidebarWidth()
+	}
+	m.viewport.SetWidth(max(width, 1))
 	m.viewport.SetHeight(max(m.height-3, 1))
+}
+
+// sidebarWidth is the width of the right-hand panel on the feed page. It is
+// only used on terminals wide enough that the feed still has room to breathe.
+func (m Model) sidebarWidth() int {
+	if m.width >= 100 {
+		return 34
+	}
+	return 0
 }
 
 func (m *Model) renderFeed() {
@@ -1110,21 +1391,51 @@ func (m *Model) renderFeed() {
 	}
 	if len(m.posts) == 0 && !m.loading {
 		m.viewport.SetContent(metaStyle.Render("No posts to show."))
+		m.feedOffsets = nil
 		return
 	}
 
-	posts := make([]string, 0, len(m.posts))
+	m.feedOffsets = make([]int, len(m.posts))
+	for i := range m.feedOffsets {
+		m.feedOffsets[i] = -1
+	}
+	feedWidth := m.viewport.Width()
+	var lines []string
 	for index, post := range m.posts {
 		if post.IsNSFW {
 			continue
 		}
-		rendered := renderPost(post, m.width)
+		m.feedOffsets[index] = len(lines)
+		rendered := renderPost(post, feedWidth)
 		if index == m.selectedPost {
 			rendered = titleStyle.Render("▶ selected") + "\n" + rendered
 		}
-		posts = append(posts, rendered)
+		if len(lines) > 0 {
+			lines = append(lines, "")
+		}
+		lines = append(lines, strings.Split(rendered, "\n")...)
 	}
-	m.viewport.SetContent(strings.Join(posts, "\n\n"))
+	m.viewport.SetContent(strings.Join(lines, "\n"))
+}
+
+// revealFeedSelection scrolls the feed by the smallest amount needed to bring
+// the selected post's first line into view, so tabbing through posts never
+// leaves the selection stranded off-screen.
+func (m *Model) revealFeedSelection() {
+	if m.selectedPost < 0 || m.selectedPost >= len(m.feedOffsets) {
+		return
+	}
+	line := m.feedOffsets[m.selectedPost]
+	if line < 0 {
+		return
+	}
+	top := m.viewport.YOffset()
+	bottom := top + m.viewport.Height()
+	if line < top {
+		m.viewport.SetYOffset(line)
+	} else if line >= bottom {
+		m.viewport.SetYOffset(max(0, line-m.viewport.Height()+1))
+	}
 }
 
 func renderPost(post client.Post, width int) string {

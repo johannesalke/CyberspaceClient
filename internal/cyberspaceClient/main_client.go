@@ -96,6 +96,7 @@ func DefaultKeyBindings() map[string][]string {
 		"switch_theme":            {"t"},
 		"select_next":             {"tab", "j"},
 		"select_previous":         {"shift+tab", "k"},
+		"focus_notifications":     {"N"},
 		"open_post":               {"enter"},
 		"back":                    {"esc"},
 		"toggle_bookmark":         {"b"},

@@ -79,7 +79,7 @@ Bindings live in the `settings.keybindings` section of the client config file (`
 }
 ```
 
-Supported actions are `quit`, `help`, `close_help`, `refresh`, `next_page`, `scroll_up`, `scroll_down`, `page_up`, `page_down`, `top`, `bottom`, `page_feed`, `page_bookmarks`, `page_notifications`, `page_journal`, `page_profile`, `page_mail`, `page_jukebox`, `compose_post`, `submit_post`, `confirm_post`, `cancel_compose`, `switch_theme`, `select_next`, `select_previous`, `open_post`, `back`, `toggle_bookmark`, `reply_to_post`, `jukebox_select_next`, `jukebox_select_previous`, `jukebox_play`, `jukebox_pause`, `jukebox_next`, `jukebox_previous`, `jukebox_stop`, `jukebox_page_next`, and `jukebox_page_previous`. Missing actions retain their defaults.
+Supported actions are `quit`, `help`, `close_help`, `refresh`, `next_page`, `scroll_up`, `scroll_down`, `page_up`, `page_down`, `top`, `bottom`, `page_feed`, `page_bookmarks`, `page_notifications`, `page_journal`, `page_profile`, `page_mail`, `page_jukebox`, `compose_post`, `submit_post`, `confirm_post`, `cancel_compose`, `switch_theme`, `select_next`, `select_previous`, `focus_notifications`, `open_post`, `back`, `toggle_bookmark`, `reply_to_post`, `jukebox_select_next`, `jukebox_select_previous`, `jukebox_play`, `jukebox_pause`, `jukebox_next`, `jukebox_previous`, `jukebox_stop`, `jukebox_page_next`, and `jukebox_page_previous`. Missing actions retain their defaults.
 
 ### Using the TUI
 
@@ -90,6 +90,10 @@ The interface is organized into seven pages, one per number key:
 **Posting** — press `c` to open the composer, type your message, `ctrl+s` to review it, then `enter`/`y` to confirm or `esc` to cancel.
 
 **Replying** — `enter` opens the selected post with its replies. `tab`/`shift+tab` (or `j`/`k`) moves the selection across the replies, and `enter` or `r` opens the composer addressed to the reply (or post) you selected. `b` bookmarks the open post.
+
+**Feed sidebar** — on wide terminals the feed page carries a right-hand panel. Its top half lists recent notifications, and its bottom half shows the jukebox's now-playing track. Press `N` to move keyboard focus into the notifications list: `tab`/`shift+tab` (or the movement keys) cycle the selection, `enter` opens the notification's post or reply (marking it read), and `esc` returns focus to the feed. Tabbing through feed posts keeps the selection in view by scrolling the feed automatically, so a selected post is never stranded off-screen.
+
+**Player anywhere** — while a track is playing, the non-conflicting player keys work from the feed page too: `p` pauses, `x` stops, `←`/`→` skip tracks. `→` loads older posts instead while there are still pages of the feed left to read.
 
 **Jukebox** — the catalogue is built by scanning the feed for audio attachments. `enter`/`space` plays the selected track, `p` pauses, `x` stops, `←`/`→` skip tracks, and `n`/`pgdown` + `pgup` page through the catalogue. Paging past the last loaded page scans deeper into the feed for more tracks. Playback goes through `mpv` (with `yt-dlp` resolving stream URLs), so both need to be installed for the jukebox to play.
 
