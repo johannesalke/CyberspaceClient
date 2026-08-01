@@ -723,9 +723,12 @@ func printCurrentSettings(settings client.ConfigSettings) {
 
 	fmt.Println("Your current settings are:")
 	for i := range v.NumField() {
+		if v.Field(i).Kind() == reflect.Map {
+			continue
+		}
 		fmt.Printf("- %s: %v\n", t.Field(i).Name, v.Field(i).Interface())
 	}
-	fmt.Println("\nTo change one of them, enter [settingname]=[new value], with no spaces in between. (Think environmental variables). The name must be properly capitalized.\nTo exit this menue, type 'exit'")
+	fmt.Println("\nTo change one of them, enter [settingname]=[new value], with no spaces in between. (Think environmental variables). The name must be properly capitalized. Edit config directly to customize TUI keybindings.\nTo exit this menue, type 'exit'")
 }
 
 func setSetting(s interface{}, fieldName string, value string) error {
