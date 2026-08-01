@@ -20,6 +20,20 @@ All you need is a Cyberspace account: log in with your email and password on fir
 ![Graphical Showcase](https://i.postimg.cc/kgwgddBQ/github-showcase-1.png)
 
 
+## Screenshots
+
+The feed, the first thing you see after logging in:
+
+![Feed](docs/screenshots/feed.png)
+
+The notifications area, reachable with `N` (or `n`) or the `3` page:
+
+![Notifications](docs/screenshots/notifications.png)
+
+The jukebox page:
+
+![Jukebox](docs/screenshots/jukebox.png)
+
 ## Quick Start
 
 ### Install the TUI
