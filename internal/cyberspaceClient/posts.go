@@ -53,6 +53,21 @@ type CreatePostConfirmation struct {
 }
 
 func (c *APIClient) GetPosts(limit int, cursor string) (posts []Post, newCursor string, err error) {
+	page, next, err := c.fetchFeedPage(limit, cursor)
+	if err != nil {
+		return page, cursor, err
+	}
+	for _, post := range page {
+		c.PostCache[post.PostID] = post
+	}
+	c.Cursors["feed"] = next
+	return page, next, nil
+}
+
+// fetchFeedPage retrieves a single page of the feed without touching the
+// pagination cursor or the post cache. Shared by the feed pager and the
+// jukebox's deeper track scan.
+func (c *APIClient) fetchFeedPage(limit int, cursor string) ([]Post, string, error) {
 	url := makeGetUrl(c.ApiUrl+"/posts", limit, cursor)
 
 	req, err := makeRequest("GET", url, c.Tokens, nil)
@@ -64,21 +79,41 @@ func (c *APIClient) GetPosts(limit int, cursor string) (posts []Post, newCursor 
 	if err != nil {
 		return nil, cursor, fmt.Errorf("Error retrieving Posts: %s", err)
 	}
+	if err := c.expectSuccess(res, "retrieving posts"); err != nil {
+		return nil, cursor, err
+	}
 
 	var getPostsResponse GetPostsResponse
-	decoder := json.NewDecoder(res.Body)
-	err = decoder.Decode(&getPostsResponse)
-	if err != nil {
-		panic(err)
+	if err := json.NewDecoder(res.Body).Decode(&getPostsResponse); err != nil {
+		return nil, cursor, fmt.Errorf("error decoding posts: %s", err)
 	}
-	for _, post := range getPostsResponse.Data {
-		c.PostCache[post.PostID] = post
-	}
-
-	//fmt.Print(getNotificationsReply)
-	c.Cursors["feed"] = getPostsResponse.Cursor
 	return getPostsResponse.Data, getPostsResponse.Cursor, nil
+}
 
+// GetPostsForTracks walks the feed from startCursor until it has collected up
+// to limit posts (or the feed runs out), for the jukebox to build its
+// catalogue from. It returns the cursor to resume from so the scan can
+// continue deeper in later calls; cursor is empty when the feed is exhausted.
+// Unlike GetPosts it never advances the feed page cursor, so browsing the
+// feed and scanning for tracks remain independent.
+func (c *APIClient) GetPostsForTracks(limit int, startCursor string) ([]Post, string, error) {
+	posts := make([]Post, 0, limit)
+	cursor := startCursor
+	for len(posts) < limit {
+		page, next, err := c.fetchFeedPage(min(limit-len(posts), 50), cursor)
+		if err != nil {
+			return posts, cursor, err
+		}
+		for _, post := range page {
+			c.PostCache[post.PostID] = post
+		}
+		posts = append(posts, page...)
+		if next == "" || next == cursor || len(page) == 0 {
+			return posts, "", nil
+		}
+		cursor = next
+	}
+	return posts, cursor, nil
 }
 
 func (c *APIClient) GetPostById(post_id string) (Post, error) {
