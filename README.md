@@ -22,6 +22,67 @@ Please note: You need to have API access permissions enabled on your account to 
 
 ## Quick Start
 
+### Install the TUI
+
+The recommended client is a full-screen, keyboard-navigable terminal interface. There are three ways to install it:
+
+**From a GitHub release (no clone, no Go):**
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/johannesalke/cyberspacecli/main/install.sh | sh
+```
+
+This downloads the prebuilt binary for your OS/architecture into `~/.local/bin`. Use `install.sh v1.2.3` to pin a tag, or `--source` to build from source instead.
+
+**With Go, without cloning:**
+
+```sh
+go install github.com/johannesalke/cyberspacecli/cmd/cyberspace@latest
+```
+
+**From a clone:**
+
+```sh
+make build     # builds ./bin/cyberspace
+make install   # installs to ~/.local/bin
+```
+
+Then launch it from any directory:
+
+```sh
+cyberspace
+```
+
+Use `↑`/`↓` to scroll, `r` to refresh, `n` to load older posts, and `q` to exit. The command is installed to `~/.local/bin`; that directory is on `PATH` in most setups. To remove the installed command later, run `make uninstall`.
+
+### Building a release
+
+`make release` cross-compiles static binaries for Linux (amd64/arm64), macOS (amd64/arm64), and Windows (amd64) into `dist/` as tarballs. `make` derives the version stamp from the nearest `git` tag. Publishing a `v*` tag triggers the GitHub Actions workflow (`.github/workflows/release.yml`), which builds the tarballs and attaches them to a GitHub Release; `install.sh` then installs them without a clone.
+
+### Keyboard navigation and remapping
+
+The TUI is fully usable from the keyboard. Press `?` at any time to see the active bindings. By default it supports arrow keys and `j`/`k` to scroll, Page Up/Page Down (or `ctrl+u`/`ctrl+d`) for page movement, `g`/Home for the top, and `G`/End for the bottom.
+
+Bindings live in the `settings.keybindings` section of the client config file (`~/.config/cyberspace_client/config.json` on Linux unless `XDG_CONFIG_HOME` is set). Every action accepts a list of terminal key names; replacing a list remaps that action, and an empty list disables it. For example:
+
+```json
+{
+  "settings": {
+    "keybindings": {
+      "scroll_up": ["w"],
+      "scroll_down": ["s"],
+      "refresh": ["ctrl+r"],
+      "quit": ["ctrl+q"],
+      "next_page": []
+    }
+  }
+}
+```
+
+Supported actions are `quit`, `help`, `close_help`, `refresh`, `next_page`, `scroll_up`, `scroll_down`, `page_up`, `page_down`, `top`, `bottom`, `page_feed`, `page_bookmarks`, `page_notifications`, `page_journal`, `page_profile`, `page_mail`, `page_jukebox`, `compose_post`, `submit_post`, `confirm_post`, `cancel_compose`, `switch_theme`, `select_next`, `select_previous`, `open_post`, `back`, `toggle_bookmark`, `reply_to_post`, `jukebox_select_next`, `jukebox_select_previous`, `jukebox_play`, `jukebox_pause`, `jukebox_next`, `jukebox_previous`, and `jukebox_stop`. Missing actions retain their defaults.
+
+### Legacy command-line client
+
 This assumes you already have a Go itself installed. If you do not, refer to this page [this page](https://golang.org/doc/install) before returning. 
 
 So long as you have the client installed, you can simply clone the Git (`git clone github.com/johannesalke/cyberspacecli`) repo onto your machine (or download it via github), then while inside the project directory execute the following commands: 
@@ -70,5 +131,3 @@ Use the optional argument 'new' to load posts made since you started the client 
  If you run Windows, I can quickly reccomend two ways of circumventing these limitations: Install [WSL](https://learn.microsoft.com/en-us/windows/wsl/install), an official Linux subsystem for Windows, or use a different client. From conversation with the dev, I know that cyberspace user @Ragnar's TUI client works just fine on windows due to having a different technological foundation. You can find it [here](https://github.com/ArmadilloBrillo/cyber-tui).
 
 The client doesn't support pure keyboard navigation, as people will still need to use a mouse/trackpad to scroll up and down the terminal output history to browse e.g. 'view feed' output. Supposedly this can be circumvented with `Fn + ↑ / ↓` on mac and `Shift + PageUp / PageDown` on Windows/Linux, but if at all, that only works on some versions. Personally, I managed to scroll up and down in windows 10 Powershell via `Ctrl + ↑ / ↓`, but the same didn't work in WSL Ubuntu.
-
-
