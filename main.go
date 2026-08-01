@@ -94,8 +94,7 @@ func main() {
 	user, err := csc.GetMyUserProfile()
 	if err != nil {
 		fmt.Println(err, "\n!",
-			"A possible cause is that your account hasn't been granted API access.\n!",
-			"Only supporters have API access enabled by default.")
+			"Could not load your profile. Check your credentials and that the server is reachable.")
 
 		os.Exit(1)
 	}
@@ -103,8 +102,7 @@ func main() {
 
 	if user.Username == "" {
 		fmt.Println("! It appears that an error has prevented the retrieval of user information.\n!",
-			"A possible cause is that your account hasn't been granted API access.\n!",
-			"Only supporters have API access enabled by default.")
+			"Check your credentials and that the server is reachable.")
 		os.Exit(1)
 	}
 
