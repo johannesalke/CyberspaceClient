@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"slices"
 )
 
 type APIClient struct {
@@ -60,10 +61,26 @@ type ErrorResponse struct {
 }
 
 type ConfigSettings struct {
-	AutoResize   bool                `json:"auto_resize"`
-	StayLoggedIn bool                `json:"stay_logged_in"`
-	KeyBindings  map[string][]string `json:"keybindings"`
-	Theme        string              `json:"theme"`
+	AutoResize         bool                `json:"auto_resize"`
+	StayLoggedIn       bool                `json:"stay_logged_in"`
+	KeyBindingsVersion int                 `json:"keybindings_version"`
+	KeyBindings        map[string][]string `json:"keybindings"`
+	Theme              string              `json:"theme"`
+}
+
+// keyBindingsVersion tracks the shape of the default key bindings. Bump it
+// whenever a default binding changes so that existing config files (which are
+// snapshotted at first run) migrate the auto-populated values forward without
+// touching anything the user customized.
+const keyBindingsVersion = 2
+
+// previousKeyBindings holds the default bindings shipped in the previous
+// version, keyed by action. EnsureKeyBindings upgrades a stored binding to the
+// new default only when it still exactly matches this previous default, so a
+// deliberate user choice is never overwritten.
+var previousKeyBindings = map[string][]string{
+	"focus_notifications": {"N"},
+	"next_page":           {"n", "right"},
 }
 
 // DefaultKeyBindings returns a fresh copy of the TUI's keyboard bindings.
@@ -124,20 +141,27 @@ func ResolveKeyBindings(overrides map[string][]string) map[string][]string {
 	return bindings
 }
 
-func ensureKeyBindings(settings *ConfigSettings) bool {
+func EnsureKeyBindings(settings *ConfigSettings) bool {
+	if settings.KeyBindingsVersion >= keyBindingsVersion && settings.KeyBindings != nil {
+		return false
+	}
+	upgraded := settings.KeyBindingsVersion < keyBindingsVersion
+	settings.KeyBindingsVersion = keyBindingsVersion
 	if settings.KeyBindings == nil {
 		settings.KeyBindings = DefaultKeyBindings()
 		return true
 	}
-
-	changed := false
 	for action, keys := range DefaultKeyBindings() {
 		if _, exists := settings.KeyBindings[action]; !exists {
 			settings.KeyBindings[action] = keys
-			changed = true
+			continue
+		}
+		if old, isPrevious := previousKeyBindings[action]; isPrevious && slices.Equal(settings.KeyBindings[action], old) {
+			settings.KeyBindings[action] = append([]string(nil), keys...)
+			upgraded = true
 		}
 	}
-	return changed
+	return upgraded
 }
 
 func ensureTheme(settings *ConfigSettings) bool {
@@ -167,7 +191,7 @@ func GetConfig() (config Config) {
 	if err != nil {
 		fmt.Printf("Couldn't retrieve config. %s", err)
 	}
-	keyBindingsChanged := ensureKeyBindings(&config.Settings)
+	keyBindingsChanged := EnsureKeyBindings(&config.Settings)
 	themeChanged := ensureTheme(&config.Settings)
 	if keyBindingsChanged || themeChanged {
 		if err := writeConfig(cfg_file_path, config); err != nil {
@@ -297,10 +321,11 @@ func InitConfig(cfgPath string) error {
 			RefreshToken: "",
 		},
 		Settings: ConfigSettings{
-			AutoResize:   false,
-			StayLoggedIn: true,
-			KeyBindings:  DefaultKeyBindings(),
-			Theme:        "amber",
+			AutoResize:         false,
+			StayLoggedIn:       true,
+			KeyBindingsVersion: keyBindingsVersion,
+			KeyBindings:        DefaultKeyBindings(),
+			Theme:              "amber",
 		},
 	}
 	return writeConfig(cfgPath, config)

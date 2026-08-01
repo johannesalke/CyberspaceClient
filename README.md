@@ -63,7 +63,7 @@ Use `↑`/`↓` to scroll, `r` to refresh, `o` (or `→`) to load older posts, a
 
 The TUI is fully usable from the keyboard. Press `?` at any time to see the active bindings. By default it supports arrow keys and `j`/`k` to scroll, Page Up/Page Down (or `ctrl+u`/`ctrl+d`) for page movement, `g`/Home for the top, and `G`/End for the bottom.
 
-Bindings live in the `settings.keybindings` section of the client config file (`~/.config/cyberspace_client/config.json` on Linux unless `XDG_CONFIG_HOME` is set). Every action accepts a list of terminal key names; replacing a list remaps that action, and an empty list disables it. For example:
+Bindings live in the `settings.keybindings` section of the client config file (`~/.config/cyberspace_client/config.json` on Linux unless `XDG_CONFIG_HOME` is set). Every action accepts a list of terminal key names; replacing a list remaps that action, and an empty list disables it. When a default binding changes between releases, the auto-populated values in an existing config migrate to the new defaults automatically (tracked by `settings.keybindings_version`), while bindings you customized are left alone. For example:
 
 ```json
 {

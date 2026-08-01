@@ -80,6 +80,40 @@ func TestOlderPostsMovedOffN(t *testing.T) {
 	}
 }
 
+func TestMigratedConfigDrivesDispatch(t *testing.T) {
+	// Simulate the end-to-end path for a user with a stale config file: the
+	// client migrates the old auto-populated defaults, the TUI resolves them,
+	// and the keys behave correctly.
+	settings := client.ConfigSettings{KeyBindings: map[string][]string{
+		"focus_notifications": {"N"},
+		"next_page":           {"n", "right"},
+	}}
+	client.EnsureKeyBindings(&settings)
+	m := New(&client.APIClient{Config: client.Config{Settings: settings}})
+	m.width, m.height = 120, 30
+
+	updated, cmd := m.Update(press('n'))
+	m = updated.(Model)
+	if m.sidebarFocus != sidebarFocusNotifications {
+		t.Fatal("after migration, n should focus the sidebar notifications")
+	}
+	if cmd != nil {
+		t.Fatalf("focusing the sidebar should not load anything, got cmd %v", cmd)
+	}
+
+	m.sidebarFocus = sidebarFocusFeed
+	m.cursor = "cursor-1"
+	m.loading = false
+	updated, cmd = m.Update(press('o'))
+	m = updated.(Model)
+	if !m.loading {
+		t.Fatal("after migration, o should start loading older posts")
+	}
+	if cmd == nil {
+		t.Fatal("loading older posts should kick off a command")
+	}
+}
+
 func TestFocusNotificationsFallsBackToPage(t *testing.T) {
 	m := newTestModel()
 	m.width = 79
