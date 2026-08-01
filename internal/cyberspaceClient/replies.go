@@ -58,12 +58,15 @@ func (c *APIClient) GetReplies(postID string, limit int, cursor string) (replies
 	if err != nil {
 		return nil, cursor, fmt.Errorf("Error retrieving Posts: %s", err)
 	}
+	if err := c.expectSuccess(res, "retrieving replies"); err != nil {
+		return nil, cursor, err
+	}
 
 	var getRepliesResponse getRepliesResponse
 	decoder := json.NewDecoder(res.Body)
 	err = decoder.Decode(&getRepliesResponse)
 	if err != nil {
-		panic(err)
+		return nil, cursor, fmt.Errorf("error decoding replies: %s", err)
 	}
 	//fmt.Print(getNotificationsReply)
 	cursor_key := "replies_" + postID
@@ -87,11 +90,14 @@ func (c *APIClient) GetReplyById(reply_id string) (Reply, error) {
 	if err != nil {
 		return Reply{}, fmt.Errorf("Error requesting post by ID: %s", err)
 	}
+	if err := c.expectSuccess(res, "requesting reply"); err != nil {
+		return Reply{}, err
+	}
 	var oneReply oneReplyResponse
 	decoder := json.NewDecoder(res.Body)
 	err = decoder.Decode(&oneReply)
 	if err != nil {
-		panic(err)
+		return Reply{}, fmt.Errorf("error decoding reply: %s", err)
 	}
 	c.ReplyCache[oneReply.Data.ReplyID] = oneReply.Data
 	//fmt.Print(postConfirm)
@@ -113,7 +119,7 @@ func (c *APIClient) CreateReply(replyInput CreateReplyInput) (Reply, error) {
 
 	replyJson, err := json.Marshal(replyInput)
 	if err != nil {
-		panic(err)
+		return Reply{}, fmt.Errorf("error encoding reply: %s", err)
 	}
 	req, err := makeRequest("POST", c.ApiUrl+"/replies", c.Tokens, bytes.NewBuffer(replyJson))
 	if err != nil {
@@ -122,6 +128,9 @@ func (c *APIClient) CreateReply(replyInput CreateReplyInput) (Reply, error) {
 	res, err := c.sendRequest(req)
 	if err != nil {
 		return Reply{}, fmt.Errorf("Error sending reply request:%s", err)
+	}
+	if err := c.expectSuccess(res, "posting reply"); err != nil {
+		return Reply{}, err
 	}
 	//fmt.Print(res.Status)
 	//fmt.Print(res.Header)

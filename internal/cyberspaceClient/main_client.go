@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"slices"
 )
 
 type APIClient struct {
@@ -44,8 +45,8 @@ func InitAPIClient() APIClient {
 }
 
 type Config struct {
-	StoredValues ConfigStorage `json:"stored_values"`
-	Settings     ConfigSettings
+	StoredValues ConfigStorage  `json:"stored_values"`
+	Settings     ConfigSettings `json:"settings"`
 }
 
 type ConfigStorage struct {
@@ -60,8 +61,115 @@ type ErrorResponse struct {
 }
 
 type ConfigSettings struct {
-	AutoResize   bool `json:"auto_resize"`
-	StayLoggedIn bool `json:"stay_logged_in"`
+	AutoResize         bool                `json:"auto_resize"`
+	StayLoggedIn       bool                `json:"stay_logged_in"`
+	KeyBindingsVersion int                 `json:"keybindings_version"`
+	KeyBindings        map[string][]string `json:"keybindings"`
+	Theme              string              `json:"theme"`
+}
+
+// keyBindingsVersion tracks the shape of the default key bindings. Bump it
+// whenever a default binding changes so that existing config files (which are
+// snapshotted at first run) migrate the auto-populated values forward without
+// touching anything the user customized.
+const keyBindingsVersion = 2
+
+// previousKeyBindings holds the default bindings shipped in the previous
+// version, keyed by action. EnsureKeyBindings upgrades a stored binding to the
+// new default only when it still exactly matches this previous default, so a
+// deliberate user choice is never overwritten.
+var previousKeyBindings = map[string][]string{
+	"focus_notifications": {"N"},
+	"next_page":           {"n", "right"},
+}
+
+// DefaultKeyBindings returns a fresh copy of the TUI's keyboard bindings.
+// Each action can be replaced with any list of Bubble Tea key names in the
+// user's config file. An empty list intentionally disables that action.
+func DefaultKeyBindings() map[string][]string {
+	return map[string][]string{
+		"quit":                    {"q", "ctrl+c"},
+		"help":                    {"?"},
+		"close_help":              {"esc"},
+		"refresh":                 {"r"},
+		"next_page":               {"O", "o", "right"},
+		"scroll_up":               {"up", "k"},
+		"scroll_down":             {"down", "j"},
+		"page_up":                 {"pgup", "ctrl+u"},
+		"page_down":               {"pgdown", "ctrl+d", "space"},
+		"top":                     {"home", "g"},
+		"bottom":                  {"end", "G"},
+		"page_feed":               {"1"},
+		"page_bookmarks":          {"2"},
+		"page_notifications":      {"3"},
+		"page_journal":            {"4"},
+		"page_profile":            {"5"},
+		"page_mail":               {"6"},
+		"page_jukebox":            {"7"},
+		"compose_post":            {"c"},
+		"submit_post":             {"ctrl+s"},
+		"confirm_post":            {"enter", "y"},
+		"cancel_compose":          {"esc"},
+		"switch_theme":            {"t"},
+		"select_next":             {"tab", "j"},
+		"select_previous":         {"shift+tab", "k"},
+		"focus_notifications":     {"N", "n"},
+		"open_post":               {"enter"},
+		"back":                    {"esc"},
+		"toggle_bookmark":         {"b"},
+		"reply_to_post":           {"r"},
+		"jukebox_select_next":     {"down", "j"},
+		"jukebox_select_previous": {"up", "k"},
+		"jukebox_play":            {"enter", "space"},
+		"jukebox_pause":           {"p"},
+		"jukebox_next":            {"right"},
+		"jukebox_previous":        {"left"},
+		"jukebox_stop":            {"x"},
+		"jukebox_page_next":       {"n", "pgdown"},
+		"jukebox_page_previous":   {"pgup"},
+	}
+}
+
+// ResolveKeyBindings applies user overrides to the defaults without mutating
+// either map. Keeping this logic in the client package lets every interface
+// share the same user configuration.
+func ResolveKeyBindings(overrides map[string][]string) map[string][]string {
+	bindings := DefaultKeyBindings()
+	for action, keys := range overrides {
+		bindings[action] = append([]string(nil), keys...)
+	}
+	return bindings
+}
+
+func EnsureKeyBindings(settings *ConfigSettings) bool {
+	if settings.KeyBindingsVersion >= keyBindingsVersion && settings.KeyBindings != nil {
+		return false
+	}
+	upgraded := settings.KeyBindingsVersion < keyBindingsVersion
+	settings.KeyBindingsVersion = keyBindingsVersion
+	if settings.KeyBindings == nil {
+		settings.KeyBindings = DefaultKeyBindings()
+		return true
+	}
+	for action, keys := range DefaultKeyBindings() {
+		if _, exists := settings.KeyBindings[action]; !exists {
+			settings.KeyBindings[action] = keys
+			continue
+		}
+		if old, isPrevious := previousKeyBindings[action]; isPrevious && slices.Equal(settings.KeyBindings[action], old) {
+			settings.KeyBindings[action] = append([]string(nil), keys...)
+			upgraded = true
+		}
+	}
+	return upgraded
+}
+
+func ensureTheme(settings *ConfigSettings) bool {
+	if settings.Theme != "" {
+		return false
+	}
+	settings.Theme = "amber"
+	return true
 }
 
 //Missing: Follows,
@@ -82,6 +190,13 @@ func GetConfig() (config Config) {
 	config, err = readConfig(cfg_file_path)
 	if err != nil {
 		fmt.Printf("Couldn't retrieve config. %s", err)
+	}
+	keyBindingsChanged := EnsureKeyBindings(&config.Settings)
+	themeChanged := ensureTheme(&config.Settings)
+	if keyBindingsChanged || themeChanged {
+		if err := writeConfig(cfg_file_path, config); err != nil {
+			fmt.Printf("Couldn't save default TUI settings. %s", err)
+		}
 	}
 	return config
 }
@@ -206,8 +321,11 @@ func InitConfig(cfgPath string) error {
 			RefreshToken: "",
 		},
 		Settings: ConfigSettings{
-			AutoResize:   false,
-			StayLoggedIn: true,
+			AutoResize:         false,
+			StayLoggedIn:       true,
+			KeyBindingsVersion: keyBindingsVersion,
+			KeyBindings:        DefaultKeyBindings(),
+			Theme:              "amber",
 		},
 	}
 	return writeConfig(cfgPath, config)

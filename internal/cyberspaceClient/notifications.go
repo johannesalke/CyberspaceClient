@@ -46,18 +46,24 @@ type MarkAllReadReply struct {
 func (c *APIClient) GetNotifications(limit int, cursor string) (notifications []Notification, newCursor string, err error) {
 	url := makeGetUrl(c.ApiUrl+"/notifications", limit, cursor)
 
-	req, _ := makeRequest("GET", url, c.Tokens, nil)
+	req, err := makeRequest("GET", url, c.Tokens, nil)
+	if err != nil {
+		return nil, cursor, fmt.Errorf("Error forming request: %s", err)
+	}
 
 	res, err := c.sendRequest(req)
 	if err != nil {
 		return nil, cursor, fmt.Errorf("Error retrieving Notifications: %s", err)
+	}
+	if err := c.expectSuccess(res, "retrieving notifications"); err != nil {
+		return nil, cursor, err
 	}
 
 	var getNotificationsReply GetNotificationsReply
 	decoder := json.NewDecoder(res.Body)
 	err = decoder.Decode(&getNotificationsReply)
 	if err != nil {
-		panic(err)
+		return nil, cursor, fmt.Errorf("error decoding notifications: %s", err)
 	}
 	//fmt.Print(getNotificationsReply)
 	c.Cursors["notifications_standard"] = getNotificationsReply.Cursor
@@ -65,20 +71,19 @@ func (c *APIClient) GetNotifications(limit int, cursor string) (notifications []
 }
 
 func (c *APIClient) MarkAsRead(notificationID string) error {
-	req, err := makeRequest("PATCH", c.UserID+"/notifications/"+notificationID, c.Tokens, nil)
+	req, err := makeRequest("PATCH", c.ApiUrl+"/notifications/"+notificationID, c.Tokens, nil)
 	if err != nil {
 		return fmt.Errorf("Error forming MarkAsRead request: %s", err)
 	}
-	_, err = c.sendRequest(req)
+	res, err := c.sendRequest(req)
 	if err != nil {
 		return err
 	}
-	return nil
-
+	return c.expectSuccess(res, "marking notification read")
 }
 
 func (c *APIClient) MarkAllAsRead() (int, error) {
-	req, err := makeRequest("PATCH", c.UserID+"/notifications/read-all", c.Tokens, nil)
+	req, err := makeRequest("PATCH", c.ApiUrl+"/notifications/read-all", c.Tokens, nil)
 	if err != nil {
 		return 0, fmt.Errorf("Error forming MarkAllAsRead request: %s", err)
 	}
@@ -86,11 +91,14 @@ func (c *APIClient) MarkAllAsRead() (int, error) {
 	if err != nil {
 		return 0, err
 	}
+	if err := c.expectSuccess(res, "marking notifications read"); err != nil {
+		return 0, err
+	}
 	var markAllReadReply MarkAllReadReply
 	decoder := json.NewDecoder(res.Body)
 	err = decoder.Decode(&markAllReadReply)
 	if err != nil {
-		panic(err)
+		return 0, fmt.Errorf("error decoding read status: %s", err)
 	}
 
 	return markAllReadReply.Data.Updated, nil

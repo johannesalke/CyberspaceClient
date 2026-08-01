@@ -101,62 +101,36 @@ type refreshedTokens struct {
 	} `json:"data"`
 }
 
-func (c *APIClient) TokenRefresh() {
-
+func (c *APIClient) TokenRefresh() error {
+	if c.Tokens.RefreshToken == "" {
+		return fmt.Errorf("no refresh token available")
+	}
 	refreshJson, err := json.Marshal(refreshData{RefreshToken: c.Tokens.RefreshToken})
 	if err != nil {
-		fmt.Printf("Error encoding refreshData to json: %s", err)
-		os.Exit(1)
+		return fmt.Errorf("error encoding refresh data: %s", err)
 	}
-	//fmt.Print(string(refreshJson))
 	res, err := http.Post(c.ApiUrl+"/auth/refresh", "application/json", bytes.NewBuffer(refreshJson))
 	if err != nil {
-		fmt.Printf("Error refreshing auth tokens: %s\n", err)
-		os.Exit(1)
+		return fmt.Errorf("error refreshing auth tokens: %s", err)
 	}
-	//fmt.Println(res.Body, res.StatusCode)
 	defer res.Body.Close()
 
 	if res.StatusCode != http.StatusOK {
-		fmt.Printf("Unexpected status during token refresh: %s\n", res.Status)
 		var errorResponse ErrorResponse
-		decoder := json.NewDecoder(res.Body)
-		err = decoder.Decode(&errorResponse)
-		if err != nil {
-			fmt.Print(err)
+		if err := json.NewDecoder(res.Body).Decode(&errorResponse); err == nil && errorResponse.Error.Message != "" {
+			return fmt.Errorf("token refresh failed: %s (%s)", errorResponse.Error.Message, errorResponse.Error.Code)
 		}
-		fmt.Print(errorResponse)
-		os.Exit(1)
+		return fmt.Errorf("token refresh failed: %s", res.Status)
 	}
 
 	var refTokens refreshedTokens
-
-	/*bodyBytes, err := io.ReadAll(res.Body)
-	if err != nil {
-		fmt.Printf("Error reading body: %s\n", err)
-		os.Exit(1)
+	if err := json.NewDecoder(res.Body).Decode(&refTokens); err != nil {
+		return fmt.Errorf("error decoding token refresh response: %s", err)
 	}
-	fmt.Printf("Raw response body: %s\n", string(bodyBytes))
-
-	// Then decode from the bytes you already read
-	err = json.Unmarshal(bodyBytes, &refTokens)*/
-
-	decoder := json.NewDecoder(res.Body)
-	err = decoder.Decode(&refTokens)
-	if err != nil {
-		fmt.Printf("Error decoding json while refreshing tokens: %s\n", err)
-		os.Exit(1)
-	}
-	//fmt.Print(refTokens)
 	c.Tokens.IDToken = refTokens.Data.IDToken
 	c.Tokens.RTDBToken = refTokens.Data.RTDBToken
-
 	c.LastStatusCode = res.StatusCode
-	if c.LastStatusCode == 401 {
-		fmt.Print("Remedial Login.")
-		c.Tokens = Login(c.ApiUrl)
-	}
-
+	return nil
 }
 
 //////////////////////| Not yet implemented | Check Username availability & resend verification email |///////////////////////////
