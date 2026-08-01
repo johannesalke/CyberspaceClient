@@ -65,7 +65,7 @@ func (c *APIClient) GetMyUserProfile() (User, error) {
 	decoder := json.NewDecoder(res.Body)
 	err = decoder.Decode(&userResponse)
 	if err != nil {
-		panic(err)
+		return User{}, fmt.Errorf("error decoding profile: %s", err)
 	}
 	//fmt.Print(userResponse.Data)
 	return userResponse.Data, nil
@@ -82,11 +82,14 @@ func (c *APIClient) GetUserProfileByName(username string) (User, error) {
 	if err != nil {
 		return User{}, fmt.Errorf("Error requesting post by ID: %s", err)
 	}
+	if err := c.expectSuccess(res, "requesting user profile"); err != nil {
+		return User{}, err
+	}
 	var userResponse GetUserResponse
 	decoder := json.NewDecoder(res.Body)
 	err = decoder.Decode(&userResponse)
 	if err != nil {
-		panic(err)
+		return User{}, fmt.Errorf("error decoding profile: %s", err)
 	}
 	//fmt.Print(userResponse.Data)
 	return userResponse.Data, nil
@@ -104,12 +107,15 @@ func (c *APIClient) GetUsersPosts(username string, limit int, cursor string) (po
 	if err != nil {
 		return nil, cursor, fmt.Errorf("Error retrieving Posts: %s", err)
 	}
+	if err := c.expectSuccess(res, "retrieving user posts"); err != nil {
+		return nil, cursor, err
+	}
 
 	var getPostsResponse GetPostsResponse
 	decoder := json.NewDecoder(res.Body)
 	err = decoder.Decode(&getPostsResponse)
 	if err != nil {
-		panic(err)
+		return nil, cursor, fmt.Errorf("error decoding user posts: %s", err)
 	}
 	//fmt.Print(getNotificationsReply)
 	cursor_key := "userposts_" + username
@@ -130,12 +136,15 @@ func (c *APIClient) GetUserReplies(username string, limit int, cursor string) (r
 	if err != nil {
 		return nil, cursor, fmt.Errorf("Error retrieving Posts: %s", err)
 	}
+	if err := c.expectSuccess(res, "retrieving user replies"); err != nil {
+		return nil, cursor, err
+	}
 
 	var getRepliesResponse getRepliesResponse
 	decoder := json.NewDecoder(res.Body)
 	err = decoder.Decode(&getRepliesResponse)
 	if err != nil {
-		panic(err)
+		return nil, cursor, fmt.Errorf("error decoding user replies: %s", err)
 	}
 	//fmt.Print(getNotificationsReply)
 	cursor_key := "userreplies_" + username

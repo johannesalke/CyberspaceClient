@@ -92,11 +92,14 @@ func (c *APIClient) GetPostById(post_id string) (Post, error) {
 	if err != nil {
 		return Post{}, fmt.Errorf("Error requesting post by ID: %s", err)
 	}
+	if err := c.expectSuccess(res, "requesting post"); err != nil {
+		return Post{}, err
+	}
 	var postConfirm OnePostResponse
 	decoder := json.NewDecoder(res.Body)
 	err = decoder.Decode(&postConfirm)
 	if err != nil {
-		panic(err)
+		return Post{}, fmt.Errorf("error decoding post: %s", err)
 	}
 	c.PostCache[postConfirm.Data.PostID] = postConfirm.Data
 	//fmt.Print(postConfirm)
@@ -122,7 +125,7 @@ func (c *APIClient) CreatePost(postInput CreatePostInput) (Post, error) {
 	}
 	postJson, err := json.Marshal(postInput)
 	if err != nil {
-		panic(err)
+		return Post{}, fmt.Errorf("error encoding post: %s", err)
 	}
 	req, err := makeRequest("POST", c.ApiUrl+"/posts", c.Tokens, bytes.NewBuffer(postJson))
 	if err != nil {
@@ -131,6 +134,9 @@ func (c *APIClient) CreatePost(postInput CreatePostInput) (Post, error) {
 	res, err := c.sendRequest(req)
 	if err != nil {
 		return Post{}, fmt.Errorf("Error sending post request:%s", err)
+	}
+	if err := c.expectSuccess(res, "posting"); err != nil {
+		return Post{}, err
 	}
 
 	var postConfirm CreatePostConfirmation

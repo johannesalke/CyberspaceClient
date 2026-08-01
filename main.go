@@ -79,7 +79,11 @@ func main() {
 		csc.Tokens = client.AuthTokens{RefreshToken: "", IDToken: "", RTDBToken: ""}
 		csc.Tokens.RefreshToken = csc.Config.StoredValues.RefreshToken
 		//fmt.Print((csc.Tokens.RefreshToken), "\n")
-		csc.TokenRefresh()
+		if err := csc.TokenRefresh(); err != nil {
+			fmt.Println(err)
+			fmt.Println("! Could not restore your session. Please log in again.")
+			os.Exit(1)
+		}
 		fmt.Print("You are still logged in.\n")
 
 	} else {
@@ -138,8 +142,9 @@ func main() {
 		cmd := command{Name: arguments[0], Args: arguments[1:]}
 		err := c.run(&csc, cmd)
 		if csc.LastStatusCode == 401 {
-			csc.TokenRefresh()
-			err = c.run(&csc, cmd)
+			if refreshErr := csc.TokenRefresh(); refreshErr == nil {
+				err = c.run(&csc, cmd)
+			}
 		}
 		if operatingSystem != "windows" {
 			fmt.Print("\033[38;5;172m")

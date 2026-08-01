@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"time"
 )
 
@@ -44,12 +43,15 @@ func (c *APIClient) GetNotes(limit int, cursor string) (posts []Note, newCursor 
 	if err != nil {
 		return nil, cursor, fmt.Errorf("Error retrieving Notes: %s", err)
 	}
+	if err := c.expectSuccess(res, "retrieving notes"); err != nil {
+		return nil, cursor, err
+	}
 
 	var getNotesResponse GetNotesResponse
 	decoder := json.NewDecoder(res.Body)
 	err = decoder.Decode(&getNotesResponse)
 	if err != nil {
-		panic(err)
+		return nil, cursor, fmt.Errorf("error decoding notes: %s", err)
 	}
 	//fmt.Print(getNotificationsReply)
 	for _, note := range getNotesResponse.Data {
@@ -71,11 +73,14 @@ func (c *APIClient) GetNoteById(note_id string) (Note, error) {
 	if err != nil {
 		return Note{}, fmt.Errorf("Error requesting post by ID: %s", err)
 	}
+	if err := c.expectSuccess(res, "requesting note"); err != nil {
+		return Note{}, err
+	}
 	var oneNote OneNoteResponse
 	decoder := json.NewDecoder(res.Body)
 	err = decoder.Decode(&oneNote)
 	if err != nil {
-		panic(err)
+		return Note{}, fmt.Errorf("error decoding note: %s", err)
 	}
 	//fmt.Print(oneNote)
 	return oneNote.Data, nil
@@ -93,7 +98,7 @@ func (c *APIClient) CreateNote(noteInput CreateNoteInput) (Note, error) {
 
 	postJson, err := json.Marshal(noteInput)
 	if err != nil {
-		panic(err)
+		return Note{}, fmt.Errorf("error encoding note: %s", err)
 	}
 	req, err := makeRequest("POST", c.ApiUrl+"/notes", c.Tokens, bytes.NewBuffer(postJson))
 	if err != nil {
@@ -102,6 +107,9 @@ func (c *APIClient) CreateNote(noteInput CreateNoteInput) (Note, error) {
 	res, err := c.sendRequest(req)
 	if err != nil {
 		return Note{}, fmt.Errorf("Error sending post request:%s", err)
+	}
+	if err := c.expectSuccess(res, "creating note"); err != nil {
+		return Note{}, err
 	}
 
 	var noteConfirm struct {
@@ -135,7 +143,7 @@ func (c *APIClient) UpdateNote(noteInput CreateNoteInput, noteID string) (Note, 
 
 	postJson, err := json.Marshal(noteInput)
 	if err != nil {
-		panic(err)
+		return Note{}, fmt.Errorf("error encoding note: %s", err)
 	}
 	req, err := makeRequest("PATCH", c.ApiUrl+"/notes/"+noteID, c.Tokens, bytes.NewBuffer(postJson))
 	if err != nil {
@@ -145,13 +153,8 @@ func (c *APIClient) UpdateNote(noteInput CreateNoteInput, noteID string) (Note, 
 	if err != nil {
 		return Note{}, fmt.Errorf("Error sending post request:%s", err)
 	}
-	if res.StatusCode != http.StatusOK && res.StatusCode != 201 {
-		fmt.Print(res.StatusCode)
-		var errResp ErrorResponse
-		decoder := json.NewDecoder(res.Body)
-		err = decoder.Decode(&errResp)
-
-		fmt.Print(errResp)
+	if err := c.expectSuccess(res, "updating note"); err != nil {
+		return Note{}, err
 	}
 
 	var noteConfirm struct {

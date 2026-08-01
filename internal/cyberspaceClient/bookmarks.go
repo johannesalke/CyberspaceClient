@@ -33,12 +33,15 @@ func (c *APIClient) GetBookmarks(limit int, cursor string) (posts []Bookmark, ne
 	if err != nil {
 		return nil, cursor, fmt.Errorf("Error retrieving Bookmarks: %s", err)
 	}
+	if err := c.expectSuccess(res, "retrieving bookmarks"); err != nil {
+		return nil, cursor, err
+	}
 
 	var getBooksmarksResponse getBooksmarksResponse
 	decoder := json.NewDecoder(res.Body)
 	err = decoder.Decode(&getBooksmarksResponse)
 	if err != nil {
-		panic(err)
+		return nil, cursor, fmt.Errorf("error decoding bookmarks: %s", err)
 	}
 	for _, bookmark := range getBooksmarksResponse.Data {
 		c.BookmarkCache[bookmark.BookmarkID] = bookmark
@@ -74,16 +77,17 @@ func (c *APIClient) CreateBookmark(id, bookmarkType string) error {
 
 	postJson, err := json.Marshal(bookmarkInput)
 	if err != nil {
-		panic(err)
+		return fmt.Errorf("error encoding bookmark: %s", err)
 	}
 	req, err := makeRequest("POST", c.ApiUrl+"/bookmarks", c.Tokens, bytes.NewBuffer(postJson))
 	if err != nil {
 		return fmt.Errorf("Error making post request:%s", err)
 	}
-	_, err = c.sendRequest(req)
+	res, err := c.sendRequest(req)
 	if err != nil {
 		return fmt.Errorf("Error sending post request:%s", err)
 	}
+	return c.expectSuccess(res, "creating bookmark")
 	/*
 		var bookmarkConfirm createBookmarkConfirm
 		decoder := json.NewDecoder(res.Body)
@@ -94,7 +98,6 @@ func (c *APIClient) CreateBookmark(id, bookmarkType string) error {
 	//fmt.Print(postConfirm)
 	//fmt.Print(res.Status)
 	//fmt.Print(res.Header)
-	return nil
 
 }
 
@@ -104,10 +107,9 @@ func (c *APIClient) DeleteBookmark(bookmarkId string) error {
 	if err != nil {
 		return fmt.Errorf("Error forming delete request: %s", err)
 	}
-	_, err = c.sendRequest(req)
+	res, err := c.sendRequest(req)
 	if err != nil {
 		return fmt.Errorf("Error during the request process: %s", err)
 	}
-	//fmt.Print("Successfully deleted bookmark")
-	return nil
+	return c.expectSuccess(res, "deleting bookmark")
 }
