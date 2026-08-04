@@ -108,28 +108,24 @@ func main() {
 	time.Sleep(500 * time.Millisecond)
 	//fmt.Printf("[authToken: %.10s...]\n", csc.Tokens.IDToken)
 
-	c := commands{make(map[string]func(*client.APIClient, command) error)}
-	c.register("view", handlerView)
-	c.register("write", handlerWrite)
-	c.register("edit", handlerEdit)
-	c.register("publish", handlerPublish)
-	c.register("bookmark", handlerBookmark)
-	c.register("help", handlerHelp)
-	c.register("delete", handlerDelete)
-	c.register("logout", handlerLogout)
-	//c.register("config", handlerUpdateConfig)
+	c := newCommands()
 
 	scanner := bufio.NewScanner(os.Stdin)
 
 	for true {
 
 		fmt.Print("> ")
-		scanner.Scan()
-		input := scanner.Text()
-		arguments := strings.Split(input, " ")
-		if len(arguments) == 0 {
+		if !scanner.Scan() { //End of input (ctrl+D, or a piped script running out). Leave like 'exit' would.
+			fmt.Println()
+			csc.Config.StoredValues.RefreshToken = csc.Tokens.RefreshToken
+			csc.SaveConfig(csc.Config)
+			fmt.Println("Exiting cyberspace...")
+			break
+		}
+		arguments := parseInput(scanner.Text())
+		if len(arguments) == 0 { //Blank line, or only whitespace.
 			continue
-		} else if arguments[0] == "exit" {
+		} else if isExitWord(arguments[0]) {
 			csc.Config.StoredValues.RefreshToken = csc.Tokens.RefreshToken
 			csc.SaveConfig(csc.Config)
 			fmt.Println("Exiting cyberspace...")
@@ -163,14 +159,64 @@ type commands struct {
 	commands map[string]func(*client.APIClient, command) error
 }
 
+// The command registry the prompt dispatches against.
+func newCommands() commands {
+	c := commands{make(map[string]func(*client.APIClient, command) error)}
+	c.register("view", handlerView)
+	c.register("write", handlerWrite)
+	c.register("edit", handlerEdit)
+	c.register("publish", handlerPublish)
+	c.register("post", handlerPublish) //'post <note_id>' is the form the help text advertises.
+	c.register("bookmark", handlerBookmark)
+	c.register("help", handlerHelp)
+	c.register("delete", handlerDelete)
+	c.register("logout", handlerLogout)
+	//c.register("config", handlerUpdateConfig)
+	return c
+}
+
 func (c *commands) run(s *client.APIClient, cmd command) error {
 	if cmdFunc, ok := c.commands[cmd.Name]; ok {
 		return cmdFunc(s, cmd)
 	}
-	return fmt.Errorf("Error: Command used not registered. ")
+	return fmt.Errorf("Error: '%s' is not a command. Known commands: %s, exit. Type 'help' for details.",
+		cmd.Name, strings.Join(c.names(), ", "))
 }
 func (c *commands) register(name string, f func(*client.APIClient, command) error) {
 	c.commands[name] = f
+}
+
+// Registered command names, sorted, for the unknown-command message.
+func (c *commands) names() []string {
+	names := slices.Collect(maps.Keys(c.commands))
+	slices.Sort(names)
+	return names
+}
+
+// Split a line of input into a command and its arguments.
+//
+// Leading slashes are accepted on the command word ('/help' works as well as
+// 'help'), because every other chat-shaped client in the world uses them and
+// typing one here used to just produce "command not registered". Splitting on
+// whitespace rather than a single space means runs of spaces and a stray tab no
+// longer turn into empty arguments that the handlers would read as real ones.
+// Whether a line means "leave this prompt". Shared by the main prompt and the
+// settings sub-prompt so both take the same words, with or without a slash.
+func isExitWord(input string) bool {
+	word := strings.ToLower(strings.TrimLeft(strings.TrimSpace(input), "/"))
+	return word == "exit" || word == "quit"
+}
+
+func parseInput(input string) []string {
+	arguments := strings.Fields(input)
+	if len(arguments) == 0 {
+		return nil
+	}
+	arguments[0] = strings.ToLower(strings.TrimLeft(arguments[0], "/"))
+	if arguments[0] == "" { //A bare '/' is not a command.
+		return nil
+	}
+	return arguments
 }
 
 //=====================|Level 1 Handlers|=========================
@@ -276,7 +322,8 @@ func handlerBookmark(csc *client.APIClient, cmd command) error {
 func handlerHelp(csc *client.APIClient, cmd command) error {
 	fmt.Print(`
 
- CyberspaceCLI supports the following commands: 
+ CyberspaceCLI supports the following commands.
+ A leading slash is optional, so '/help' and 'help' do the same thing.
 
  - view feed (optional_arg): Load 10 posts from the feed, starting at the newest. Every time the command is used, 10 more are loaded starting from where the previous iteration stopped. In the feed, posts are truncated at 1000 characters. To see the whole post, use the 'view post' command. 
    - Use the optional argument 'new' to load posts made since you started the client without losing the marker of the basic command. 
@@ -291,21 +338,27 @@ func handlerHelp(csc *client.APIClient, cmd command) error {
  - write reply <target_id>: Write a reply to the post or reply whose id you gave. Will ask for final confirmation before posting. 
  - write note: Same as 'write post', but your writing is put in your journal instead.
  - edit note <note_id: Opens a note in your default text editor (if none, nano) and lets you edit it.
- - post <note_id>: Posts a note to the feed, making it visible to other users. 
+ - publish <note_id>: Posts a note to the feed, making it visible to other users. Also available as 'post <note_id>'.
+ - edit settings: Change client settings (such as auto-resizing) for this session.
  - edit config: This lets you edit the client's config file. If you set 'stay logged in' to true, the client will save your refresh token and you will remain logged in across sessions. The config file should be in your .config/ or Library/Application Support/ directories, depending on whether you use linux or apple.
  - bookmark <target_id: Bookmarks the post or reply whose id was given as an argument.
  - delete <target_id>: This command deletes replies, posts or notes. You will be asked to confirm intent to delete. Currently, bookmarks cannot be deleted within the client.
  - help: you are >here<
  - logout: Log out of your account and exit the client. You will need to enter your email and password again the next time.
- - exit: exit
+ - exit: exit (or 'quit', or ctrl+D)
 
  `, "\n")
 	return nil
 }
 
 func handlerPublish(csc *client.APIClient, cmd command) error {
+	//'publish <note_id>' and 'post <note_id>' are both documented, so accept the
+	//short form by filling in the noun the long form spells out.
+	if len(cmd.Args) == 1 && cmd.Args[0] != "note" {
+		cmd.Args = []string{"note", cmd.Args[0]}
+	}
 	if len(cmd.Args) != 2 {
-		renderPrint("The 'publish' command requires two extra arguments: note & <note_id>\n")
+		renderPrint("The 'publish' command requires the id of the note to publish: publish <note_id>\n")
 		return nil
 	}
 
@@ -417,6 +470,10 @@ func handlerViewFeed(csc *client.APIClient, cmd command) error {
 } // Complete ~
 
 func handlerViewPost(csc *client.APIClient, cmd command) error {
+	if len(cmd.Args) != 2 { //Without this, a bare 'view post' indexes past the arguments and panics.
+		renderPrint("The 'view post' command requires the id of the post to view: view post <post_id>\n")
+		return nil
+	}
 
 	post_id := cmd.Args[1]
 
@@ -599,8 +656,9 @@ func handlerWritePost(csc *client.APIClient, cmd command) error {
 } //|Complete
 
 func handlerWriteReply(csc *client.APIClient, cmd command) error {
-	if len(cmd.Args) != 2 {
+	if len(cmd.Args) != 2 { //Falling through here would index past the arguments and panic.
 		renderPrint("The 'write reply' command requires the id of a target as an argument\n")
+		return nil
 	}
 
 	replyInput := client.CreateReplyInput{}
@@ -690,18 +748,25 @@ func handlerEditSettings(csc *client.APIClient, cmd command) error {
 		printCurrentSettings(csc.Config.Settings)
 
 		fmt.Print("> ")
-		scanner.Scan()
-		input := scanner.Text()
-		arguments := strings.Split(input, "=")
-		if arguments[0] == "exit" {
-			fmt.Println("Exiting settings...")
+		if !scanner.Scan() { //Same as the main prompt: EOF is a way out, not a reason to spin.
+			fmt.Println()
 			break
-		} else if len(arguments) == 0 {
-			continue
-		} else if len(arguments) != 2 {
-			fmt.Println("Error: Incorrect formatting.")
+		}
+		input := strings.TrimSpace(scanner.Text())
+		if input == "" { //A blank line is not a malformed setting.
 			continue
 		}
+		if isExitWord(input) {
+			fmt.Println("Exiting settings...")
+			break
+		}
+		arguments := strings.Split(input, "=")
+		if len(arguments) != 2 {
+			fmt.Println("Error: Incorrect formatting. Use [settingname]=[new value], or 'exit' to leave.")
+			continue
+		}
+		arguments[0] = strings.TrimSpace(arguments[0])
+		arguments[1] = strings.TrimSpace(arguments[1])
 
 		err := setSetting(&csc.Config.Settings, arguments[0], arguments[1])
 		if err != nil {
@@ -759,7 +824,7 @@ func setSetting(s interface{}, fieldName string, value string) error {
 	}
 
 	//field.Set(reflect.ValueOf(value))
-	fmt.Printf("Set %s to %s", fieldName, value)
+	fmt.Printf("Set %s to %s\n", fieldName, value)
 	return nil
 }
 
