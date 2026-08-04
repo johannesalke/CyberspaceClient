@@ -1,0 +1,85 @@
+name: release
+
+# Cross-compiles the client and attaches the binaries to a release, so
+# install.sh can download one instead of requiring a Go toolchain on the
+# user's machine. Asset names must stay in sync with install.sh's
+# `${CMD}_${os}_${arch}` — the installer builds the download URL from them.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to build and release (e.g. v0.1.0)"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      # One platform failing should not cancel the others — when a build breaks,
+      # the useful question is which targets are affected, and fail-fast hides it.
+      fail-fast: false
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+          - goos: linux
+            goarch: arm64
+          - goos: darwin
+            goarch: amd64
+          - goos: darwin
+            goarch: arm64
+          - goos: windows
+            goarch: amd64
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Build
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: "0"
+        run: |
+          name="cyberspacecli_${GOOS}_${GOARCH}"
+          if [ "$GOOS" = windows ]; then name="${name}.exe"; fi
+          go build -trimpath -ldflags "-s -w" -o "dist/$name" .
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cyberspacecli_${{ matrix.goos }}_${{ matrix.goarch }}
+          path: dist/*
+          if-no-files-found: error
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag || github.ref_name }}
+          REPO: ${{ github.repository }}
+        run: |
+          # Re-runnable: a tag that already has a release gets its assets
+          # replaced rather than failing the job.
+          if gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1; then
+            gh release upload "$TAG" dist/* --repo "$REPO" --clobber
+          else
+            gh release create "$TAG" dist/* --repo "$REPO" \
+              --title "$TAG" --generate-notes
+          fi
