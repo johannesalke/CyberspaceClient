@@ -40,7 +40,7 @@ go install github.com/johannesalke/cyberspacecli
 
 ## Usage 
 
-Client commands consist of a verb and a noun. 
+Client commands consist of a verb and a noun. A leading slash is optional, so `/view feed` and `view feed` do the same thing.
 
 
 - `view feed (optional_arg)`: Load 10 posts from the feed, starting at the newest. Every time the command is used, 10 more are loaded starting from where the previous iteration stopped. In the feed, posts are truncated at 1000 characters. To see the whole post, use the 'view post' command. 
@@ -54,7 +54,7 @@ Use the optional argument 'new' to load posts made since you started the client 
 - `write reply <target_id>`: Write a reply to the post or reply whose id you gave. Will ask for final confirmation before posting. 
 - `write note`: Same as 'write post', but your writing is put in your journal instead.
 - `edit note <note_id`: Opens a note in your default text editor (if none, nano/notepad) and lets you edit it.
-- `publish <note_id>`: Posts a note to the feed, making it visible to other users. 
+- `publish <note_id>`: Posts a note to the feed, making it visible to other users. Also available as `post <note_id>`.
 - `edit config`: This lets you edit the client's config file. If you set 'stay logged in' to true, the client will save your refresh token and you will remain logged in across sessions. The config file should be in your .config/ or Library/Application Support/ directories, depending on whether you use linux or apple.
 - `bookmark <target_id`: Bookmarks the post or reply whose id was given as an argument.
 - `delete <target_id>`: This command deletes replies, posts, notes or bookmarks. The type of the target doesn't need to be specified, if will be inferred from the id. You will be asked to confirm intent to delete. 

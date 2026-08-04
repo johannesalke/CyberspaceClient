@@ -4,6 +4,11 @@ package main
 
 //This version of the file is only compiled on windows, and doesn't have any of the ANSI formatting the windows file has.
 
+//The renderers take the same arguments as their counterparts in
+//rendering_normal.go, because main.go is shared and calls both. The trailing
+//resize argument is ignored here: auto-resizing is done by emitting an ANSI
+//sequence, which is exactly what this build leaves out.
+
 import (
 	"fmt"
 	"regexp"
@@ -61,7 +66,7 @@ func RenderBox(elements ...string) error {
 	return nil
 }
 
-func renderPost(post client.Post, fullPost bool) { //Full post should be set to false in the feed to truncate posts in the feed. THis is not implemented yet!
+func renderPost(post client.Post, fullPost bool, _ bool) { //Full post should be set to false in the feed to truncate posts in the feed. THis is not implemented yet!
 
 	simpleID, _ := getSimpleID(post.PostID)
 	replies := ""
@@ -121,7 +126,7 @@ func renderPost(post client.Post, fullPost bool) { //Full post should be set to 
 
 }
 
-func renderReply(reply client.Reply) {
+func renderReply(reply client.Reply, _ bool) {
 	simpleID, _ := getSimpleID(reply.ReplyID)
 	responseTarget := "" //reply.ParentPostAuthor
 	if reply.ParentReplyAuthor != "" {
@@ -163,7 +168,7 @@ type Note struct {
 	CreatedAt      time.Time `json:"createdAt"`
 }
 
-func renderNote(note client.Note, fullNote bool) { //Full note should be set to false in the feed to truncate posts in the feed. THis is not implemented yet!
+func renderNote(note client.Note, fullNote bool, _ bool) { //Full note should be set to false in the feed to truncate posts in the feed. THis is not implemented yet!
 	simpleID, _ := getSimpleID(note.NoteID)
 	topline, _ := renderer.Render(fmt.Sprintln("Id: ", simpleID))
 
@@ -196,7 +201,7 @@ func renderNote(note client.Note, fullNote bool) { //Full note should be set to 
 
 }
 
-func renderNotification(csc *client.APIClient, n client.Notification) {
+func renderNotification(csc *client.APIClient, n client.Notification, _ bool) {
 	simpleID, _ := getSimpleID(n.TargetID)
 	//timeSince :=time.Since(n.CreatedAt)
 	timeSince := humanize.RelTime(time.Now(), n.CreatedAt, "in the future", "ago")
@@ -209,7 +214,7 @@ func renderNotification(csc *client.APIClient, n client.Notification) {
 	fmt.Print(thinBox.Render(notification_string) + "\n")
 }
 
-func renderBookmarkPost(post client.Post, bookmark_id int) {
+func renderBookmarkPost(post client.Post, bookmark_id int, _ bool) {
 
 	replies := ""
 	if post.RepliesCount == 1 {
@@ -257,7 +262,7 @@ func renderBookmarkPost(post client.Post, bookmark_id int) {
 
 }
 
-func renderBookmarkReply(reply client.Reply, bookmark_id int) {
+func renderBookmarkReply(reply client.Reply, bookmark_id int, _ bool) {
 	responseTarget := "" //reply.ParentPostAuthor
 	if reply.ParentReplyAuthor != "" {
 		responseTarget = " | Responding to @" + reply.ParentReplyAuthor
@@ -298,7 +303,7 @@ func renderPrint(str string) {
 	fmt.Print(renderer.Render(str))
 }
 
-func renderProfile(user client.User) {
+func renderProfile(user client.User, _ bool) {
 
 	timeSince := humanize.Time(user.CreatedAt)
 	guild := ""
