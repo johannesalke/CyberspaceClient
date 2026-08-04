@@ -20,9 +20,28 @@ Please note: You need to have API access permissions enabled on your account to 
 ![Graphical Showcase](https://i.postimg.cc/kgwgddBQ/github-showcase-1.png)
 
 
+## Install
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/johannesalke/cyberspacecli/main/install.sh | sh
+```
+
+That installs `cyberspacecli` into `~/.local/bin`. It downloads a prebuilt binary when one is published for your platform, and otherwise builds from source — which needs [Go](https://go.dev/doc/install) installed.
+
+To update or uninstall later, pass the command after `sh -s --`:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/johannesalke/cyberspacecli/main/install.sh | sh -s -- update
+curl -fsSL https://raw.githubusercontent.com/johannesalke/cyberspacecli/main/install.sh | sh -s -- remove
+```
+
+Uninstalling keeps your saved session so a reinstall does not force a re-login; add `--purge` to delete the config directory too. The installer only ever removes a binary it installed itself.
+
+It can be pointed elsewhere with environment variables — `CYBERSPACE_INSTALL_DIR`, `CYBERSPACE_CMD`, `CYBERSPACE_REF`, `CYBERSPACE_REPO`, `CYBERSPACE_SRC_DIR`, and `CYBERSPACE_FROM_SOURCE=1` to skip release binaries. Run `sh install.sh help` for the full list.
+
 ## Quick Start
 
-This assumes you already have a Go itself installed. If you do not, refer to this page [this page](https://golang.org/doc/install) before returning. 
+To build it yourself instead, this assumes you already have a Go itself installed. If you do not, refer to this page [this page](https://golang.org/doc/install) before returning. 
 
 So long as you have the client installed, you can simply clone the Git (`git clone github.com/johannesalke/cyberspacecli`) repo onto your machine (or download it via github), then while inside the project directory execute the following commands: 
 
